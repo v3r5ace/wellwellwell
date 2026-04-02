@@ -38,6 +38,7 @@ let activeReadingId = null;
 let currentRange = "1m";
 let currentPage = 0;
 let allReadings = [];
+let knownBuildId = null;
 const PAGE_SIZE = 12;
 
 const RANGES = {
@@ -510,6 +511,14 @@ async function loadDashboard() {
   const status = await statusResponse.json();
   const readings = await readingsResponse.json();
 
+  // If the server has restarted (new build), force a full page reload
+  // so the browser picks up new JS/CSS/HTML from the updated container.
+  if (knownBuildId && status.build_id && status.build_id !== knownBuildId) {
+    location.reload();
+    return;
+  }
+  knownBuildId = status.build_id || null;
+
   flushEnabled = !!status.admin?.flush_enabled;
   bottomActions.hidden = !flushEnabled;
 
@@ -595,6 +604,19 @@ flushHistoryButton.addEventListener("click", async () => {
 
 loadDashboard().catch((error) => {
   actionStatus.textContent = error.message;
+});
+
+// Auto-refresh when the iOS web app (or any tab) returns to the foreground.
+// Uses a 30-second cooldown to avoid hammering the API on rapid app-switches.
+let lastVisibilityRefresh = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    const now = Date.now();
+    if (now - lastVisibilityRefresh > 30_000) {
+      lastVisibilityRefresh = now;
+      loadDashboard().catch(() => {});
+    }
+  }
 });
 
 setInterval(() => {
