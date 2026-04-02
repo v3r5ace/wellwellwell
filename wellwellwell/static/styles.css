@@ -68,6 +68,25 @@ h1 {
   align-items: flex-end;
 }
 
+.hero-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.button-outline {
+  background: none;
+  border: 2px solid var(--accent);
+  color: var(--accent);
+  box-shadow: none;
+  font-size: 1.2rem;
+  padding: 10px 16px;
+  line-height: 1;
+}
+
+.button-outline:active {
+  background: rgba(194, 24, 91, 0.08);
+}
+
 .button {
   border: 0;
   border-radius: 999px;
@@ -219,6 +238,73 @@ h1 {
   border-radius: 18px;
 }
 
+.chart-tap-hint {
+  display: none;
+  text-align: center;
+  margin: 8px 0 0;
+  font-size: 0.78rem;
+}
+
+.chart-dot {
+  cursor: pointer;
+}
+
+.chart-dot:hover {
+  filter: brightness(1.2);
+}
+
+.modal-chart-content {
+  max-width: 95vw;
+  width: 100%;
+}
+
+.modal-chart-content svg {
+  width: 100%;
+  aspect-ratio: 900 / 500;
+  display: block;
+  margin-top: 12px;
+  background:
+    linear-gradient(180deg, rgba(194, 24, 91, 0.04), rgba(194, 24, 91, 0)),
+    rgba(255, 255, 255, 0.35);
+  border-radius: 18px;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0 4px;
+}
+
+.page-btn {
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.page-btn:hover {
+  color: var(--ink);
+  background: rgba(33, 48, 39, 0.06);
+}
+
+.page-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.page-btn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 .chart-tooltip {
   font-size: 10px;
   fill: var(--ink);
@@ -247,8 +333,6 @@ h1 {
 
 .table-wrap {
   overflow-x: auto;
-  max-height: 480px;
-  overflow-y: auto;
 }
 
 table {
@@ -407,5 +491,9 @@ th {
   .range-btn {
     padding: 5px 10px;
     font-size: 0.72rem;
+  }
+
+  .chart-tap-hint {
+    display: block;
   }
 }

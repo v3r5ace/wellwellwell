@@ -13,11 +13,17 @@ const latestMeta = document.getElementById("latest-meta");
 const chart = document.getElementById("history-chart");
 const readingsBody = document.getElementById("readings-body");
 const tableCaption = document.getElementById("table-caption");
+const pagination = document.getElementById("pagination");
 const collectNowButton = document.getElementById("collect-now");
+const refreshBtn = document.getElementById("refresh-btn");
 const flushHistoryButton = document.getElementById("flush-history");
 const bottomActions = document.getElementById("bottom-actions");
 const actionStatus = document.getElementById("action-status");
 const rangeSelector = document.getElementById("range-selector");
+
+const chartModal = document.getElementById("chart-modal");
+const chartModalClose = document.getElementById("chart-modal-close");
+const chartModalSvg = document.getElementById("chart-modal-svg");
 
 const readingModal = document.getElementById("reading-modal");
 const modalClose = document.getElementById("modal-close");
@@ -30,6 +36,9 @@ const modalDelete = document.getElementById("modal-delete");
 let flushEnabled = false;
 let activeReadingId = null;
 let currentRange = "1m";
+let currentPage = 0;
+let allReadings = [];
+const PAGE_SIZE = 12;
 
 const RANGES = {
   "24h": { hours: 24, label: "Last 24 Hours" },
@@ -73,17 +82,19 @@ function sinceParam(range) {
   return `&since=${encodeURIComponent(since)}`;
 }
 
+function isMobile() {
+  return window.innerWidth <= 640;
+}
+
 function setTankLevel(percent) {
   const pct = Math.max(0, Math.min(100, percent ?? 0)) / 100;
 
-  // Front tank: body y=50, height=230, bottom at 280
   const frontH = pct * 230;
   const frontY = 280 - frontH;
   tankFillFront.setAttribute("y", String(frontY));
   tankFillFront.setAttribute("height", String(frontH));
   tankFillFront.setAttribute("fill", "url(#water-gradient-front)");
 
-  // Back tank: body y=30, height=230, bottom at 260
   const backH = pct * 230;
   const backY = 260 - backH;
   tankFillBack.setAttribute("y", String(backY));
@@ -155,12 +166,13 @@ function formatAxisDate(date, range) {
   return shortDateFormatter.format(date);
 }
 
-function renderChart(readings) {
-  chart.innerHTML = "";
+function buildChart(svgEl, readings, options = {}) {
+  svgEl.innerHTML = "";
 
-  const svgW = 900;
-  const svgH = 340;
-  chart.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+  const svgW = options.width || 900;
+  const svgH = options.height || 340;
+  const clickable = options.clickable !== false;
+  svgEl.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
 
   const points = readings
     .filter((reading) => reading.percent_full != null)
@@ -175,7 +187,7 @@ function renderChart(readings) {
     message.setAttribute("font-size", "14");
     message.setAttribute("font-family", "Avenir Next, Segoe UI, sans-serif");
     message.textContent = "Not enough readings yet";
-    chart.appendChild(message);
+    svgEl.appendChild(message);
     return;
   }
 
@@ -186,24 +198,21 @@ function renderChart(readings) {
   const usableW = svgW - padLeft - padRight;
   const usableH = svgH - padTop - padBottom;
 
-  // Auto-scale Y-axis to data range with padding
   const levels = points.map((r) => r.percent_full);
   const dataMin = Math.min(...levels);
   const dataMax = Math.max(...levels);
   const dataSpan = dataMax - dataMin;
-  const yPad = Math.max(dataSpan * 0.2, 2); // at least 2% padding
-  const yMin = Math.max(0, Math.floor((dataMin - yPad) / 5) * 5); // snap to 5%
+  const yPad = Math.max(dataSpan * 0.2, 2);
+  const yMin = Math.max(0, Math.floor((dataMin - yPad) / 5) * 5);
   const yMax = Math.min(100, Math.ceil((dataMax + yPad) / 5) * 5);
-  const yRange = yMax - yMin || 10; // avoid zero range
+  const yRange = yMax - yMin || 10;
 
-  // Pick nice Y-axis tick interval
   let yStep;
   if (yRange <= 10) yStep = 2;
   else if (yRange <= 25) yStep = 5;
   else if (yRange <= 60) yStep = 10;
   else yStep = 25;
 
-  // Y-axis labels and grid lines
   for (let pct = yMin; pct <= yMax; pct += yStep) {
     const y = padTop + usableH - ((pct - yMin) / yRange) * usableH;
 
@@ -213,7 +222,7 @@ function renderChart(readings) {
     line.setAttribute("y1", String(y));
     line.setAttribute("y2", String(y));
     line.setAttribute("stroke", "rgba(33, 48, 39, 0.10)");
-    chart.appendChild(line);
+    svgEl.appendChild(line);
 
     const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
     label.setAttribute("x", String(padLeft - 8));
@@ -221,17 +230,15 @@ function renderChart(readings) {
     label.setAttribute("text-anchor", "end");
     label.setAttribute("class", "chart-axis-label");
     label.textContent = `${pct}%`;
-    chart.appendChild(label);
+    svgEl.appendChild(label);
   }
 
-  // Compute point positions using auto-scaled Y range
   const coords = points.map((reading, index) => {
     const x = padLeft + (usableW / (points.length - 1)) * index;
     const y = padTop + usableH - ((reading.percent_full - yMin) / yRange) * usableH;
     return { x, y, reading };
   });
 
-  // X-axis labels — pick ~6 evenly spaced ticks
   const tickCount = Math.min(6, points.length);
   for (let i = 0; i < tickCount; i++) {
     const idx = Math.round((i / (tickCount - 1)) * (points.length - 1));
@@ -244,7 +251,7 @@ function renderChart(readings) {
     label.setAttribute("text-anchor", "middle");
     label.setAttribute("class", "chart-axis-label");
     label.textContent = formatAxisDate(date, currentRange);
-    chart.appendChild(label);
+    svgEl.appendChild(label);
 
     const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
     tick.setAttribute("x1", String(x));
@@ -252,10 +259,9 @@ function renderChart(readings) {
     tick.setAttribute("y1", String(padTop + usableH));
     tick.setAttribute("y2", String(padTop + usableH + 6));
     tick.setAttribute("stroke", "rgba(33, 48, 39, 0.2)");
-    chart.appendChild(tick);
+    svgEl.appendChild(tick);
   }
 
-  // Line path
   const pathD = coords
     .map(({ x, y }, i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`)
     .join(" ");
@@ -267,9 +273,8 @@ function renderChart(readings) {
   path.setAttribute("stroke-width", "3");
   path.setAttribute("stroke-linecap", "round");
   path.setAttribute("stroke-linejoin", "round");
-  chart.appendChild(path);
+  svgEl.appendChild(path);
 
-  // Dots — show all if <= 60 points, otherwise sample evenly
   const maxDots = 60;
   let dotIndices;
   if (coords.length <= maxDots) {
@@ -287,13 +292,20 @@ function renderChart(readings) {
     const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     dot.setAttribute("cx", String(x));
     dot.setAttribute("cy", String(y));
-    dot.setAttribute("r", coords.length > 30 ? "3" : "4.5");
+    dot.setAttribute("r", coords.length > 30 ? "3.5" : "5");
     dot.setAttribute("fill", "#f48fb1");
     dot.setAttribute("stroke", "#880e4f");
     dot.setAttribute("stroke-width", coords.length > 30 ? "1.5" : "2");
-    chart.appendChild(dot);
+    dot.setAttribute("class", "chart-dot");
+    if (clickable) {
+      dot.style.cursor = "pointer";
+      dot.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openReadingModal(reading);
+      });
+    }
+    svgEl.appendChild(dot);
 
-    // Label on dot — only show if few enough points to not overlap
     if (coords.length <= 24) {
       const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
       lbl.setAttribute("x", String(x));
@@ -301,9 +313,13 @@ function renderChart(readings) {
       lbl.setAttribute("text-anchor", "middle");
       lbl.setAttribute("class", "chart-tooltip");
       lbl.textContent = `${reading.percent_full.toFixed(0)}%`;
-      chart.appendChild(lbl);
+      svgEl.appendChild(lbl);
     }
   }
+}
+
+function renderChart(readings) {
+  buildChart(chart, readings);
 }
 
 function renderTable(readings) {
@@ -313,12 +329,19 @@ function renderTable(readings) {
     const row = document.createElement("tr");
     row.innerHTML = '<td colspan="6" class="empty">No readings yet</td>';
     readingsBody.appendChild(row);
+    tableCaption.textContent = "Newest first";
+    pagination.innerHTML = "";
     return;
   }
 
-  tableCaption.textContent = `${readings.length} readings \u2022 Newest first`;
+  const totalPages = Math.ceil(readings.length / PAGE_SIZE);
+  if (currentPage >= totalPages) currentPage = totalPages - 1;
+  const start = currentPage * PAGE_SIZE;
+  const pageItems = readings.slice(start, start + PAGE_SIZE);
 
-  for (const reading of readings) {
+  tableCaption.textContent = `${readings.length} readings \u2022 Page ${currentPage + 1} of ${totalPages}`;
+
+  for (const reading of pageItems) {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${dateFormatter.format(new Date(reading.captured_at))}</td>
@@ -331,6 +354,40 @@ function renderTable(readings) {
     row.addEventListener("click", () => openReadingModal(reading));
     readingsBody.appendChild(row);
   }
+
+  renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+  pagination.innerHTML = "";
+  if (totalPages <= 1) return;
+
+  const prevBtn = document.createElement("button");
+  prevBtn.className = "page-btn";
+  prevBtn.textContent = "\u2039 Prev";
+  prevBtn.disabled = currentPage === 0;
+  prevBtn.addEventListener("click", () => { currentPage--; renderTable(allReadings); });
+  pagination.appendChild(prevBtn);
+
+  const maxVisible = 5;
+  let startPage = Math.max(0, currentPage - Math.floor(maxVisible / 2));
+  let endPage = Math.min(totalPages, startPage + maxVisible);
+  if (endPage - startPage < maxVisible) startPage = Math.max(0, endPage - maxVisible);
+
+  for (let i = startPage; i < endPage; i++) {
+    const btn = document.createElement("button");
+    btn.className = `page-btn${i === currentPage ? " active" : ""}`;
+    btn.textContent = String(i + 1);
+    btn.addEventListener("click", () => { currentPage = i; renderTable(allReadings); });
+    pagination.appendChild(btn);
+  }
+
+  const nextBtn = document.createElement("button");
+  nextBtn.className = "page-btn";
+  nextBtn.textContent = "Next \u203a";
+  nextBtn.disabled = currentPage >= totalPages - 1;
+  nextBtn.addEventListener("click", () => { currentPage++; renderTable(allReadings); });
+  pagination.appendChild(nextBtn);
 }
 
 function openReadingModal(reading) {
@@ -406,6 +463,18 @@ modalDelete.addEventListener("click", async () => {
   }
 });
 
+// Chart modal for mobile
+chart.addEventListener("click", () => {
+  if (!isMobile()) return;
+  buildChart(chartModalSvg, allReadings, { width: 900, height: 500, clickable: false });
+  chartModal.hidden = false;
+});
+
+chartModalClose.addEventListener("click", () => { chartModal.hidden = true; });
+chartModal.addEventListener("click", (e) => {
+  if (e.target === chartModal) chartModal.hidden = true;
+});
+
 // Range selector
 rangeSelector.addEventListener("click", (e) => {
   const btn = e.target.closest(".range-btn");
@@ -414,9 +483,18 @@ rangeSelector.addEventListener("click", (e) => {
   if (range === currentRange) return;
 
   currentRange = range;
+  currentPage = 0;
   rangeSelector.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("active"));
   btn.classList.add("active");
   loadDashboard();
+});
+
+// Refresh button
+refreshBtn.addEventListener("click", () => {
+  refreshBtn.disabled = true;
+  loadDashboard()
+    .catch(() => {})
+    .finally(() => { refreshBtn.disabled = false; });
 });
 
 async function loadDashboard() {
@@ -440,13 +518,14 @@ async function loadDashboard() {
   collectNowButton.textContent = collectRemaining <= 0
     ? "Rate Limited"
     : collectRemaining < 5
-      ? `Collect Now (${collectRemaining} left)`
-      : "Collect Now";
+      ? `New Reading (${collectRemaining} left)`
+      : "New Reading";
 
+  allReadings = readings.items;
   setCurrentLevel(status.latest);
-  setSummary(computeSummary(readings.items));
-  renderChart(readings.items);
-  renderTable(readings.items);
+  setSummary(computeSummary(allReadings));
+  renderChart(allReadings);
+  renderTable(allReadings);
 }
 
 collectNowButton.addEventListener("click", async () => {
