@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>WellWellWell</title>
+    <link rel="stylesheet" href="/assets/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Local Well Monitor</p>
+          <h1>Water Level At A Glance</h1>
+          <p class="lede">
+            Fixed-camera measurement, local detection, and a fast dashboard built for a headless Ubuntu box.
+          </p>
+        </div>
+        <div class="hero-actions">
+          <button id="collect-now" class="button">Collect Now</button>
+          <p id="action-status" class="muted"></p>
+        </div>
+      </section>
+
+      <section class="grid">
+        <article class="panel level-panel">
+          <p class="panel-label">Current Level</p>
+          <div class="level-row">
+            <div>
+              <div id="level-value" class="level-value">--</div>
+              <p id="level-caption" class="muted">No reading yet</p>
+            </div>
+            <div class="tank-wrap">
+              <div class="tank">
+                <div id="tank-fill" class="tank-fill"></div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel stats-panel">
+          <p class="panel-label">Last 24 Hours</p>
+          <dl class="stats">
+            <div>
+              <dt>Readings</dt>
+              <dd id="reading-count">0</dd>
+            </div>
+            <div>
+              <dt>Average</dt>
+              <dd id="avg-level">--</dd>
+            </div>
+            <div>
+              <dt>Range</dt>
+              <dd id="level-range">--</dd>
+            </div>
+            <div>
+              <dt>Confidence</dt>
+              <dd id="avg-confidence">--</dd>
+            </div>
+          </dl>
+        </article>
+      </section>
+
+      <section class="grid history-grid">
+        <article class="panel chart-panel">
+          <div class="panel-header">
+            <p class="panel-label">History</p>
+            <p id="chart-caption" class="muted">Last 96 readings</p>
+          </div>
+          <svg id="history-chart" viewBox="0 0 900 280" preserveAspectRatio="none" aria-label="Water level history"></svg>
+        </article>
+
+        <article class="panel image-panel">
+          <div class="panel-header">
+            <p class="panel-label">Latest Crop</p>
+            <p id="latest-meta" class="muted">Waiting for a reading</p>
+          </div>
+          <img id="latest-image" alt="Latest marker crop" />
+        </article>
+      </section>
+
+      <section class="panel table-panel">
+        <div class="panel-header">
+          <p class="panel-label">Recent Readings</p>
+          <p class="muted">Newest first</p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Captured</th>
+                <th>Level</th>
+                <th>Marker Y</th>
+                <th>Confidence</th>
+                <th>Source</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody id="readings-body">
+              <tr>
+                <td colspan="6" class="empty">No readings yet</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <script src="/assets/app.js" defer></script>
+  </body>
+</html>

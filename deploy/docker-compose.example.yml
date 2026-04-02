@@ -1,0 +1,28 @@
+services:
+  wellwellwell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: wellwellwell
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      WELL_DATA_DIR: /data
+      WELL_DB_PATH: /data/wellwellwell.sqlite3
+      WELL_SNAPSHOTS_DIR: /data/snapshots
+      WELL_BIND_HOST: 0.0.0.0
+      WELL_BIND_PORT: 8000
+      WELL_ENABLE_COLLECTOR: "true"
+      WELL_COLLECT_INTERVAL_MINUTES: "15"
+      WELL_COLLECT_ON_STARTUP: "true"
+      CAMERA_RTSP_URL: "rtsps://protect-host-or-ip:7441/replace-with-your-stream-token?enableSrtp"
+      WELL_CROP: "1470,150,220,450"
+      WELL_BLUE_HSV_LOWER: "90,60,40"
+      WELL_BLUE_HSV_UPPER: "140,255,255"
+      WELL_MIN_CONTOUR_AREA: "80"
+      WELL_EMPTY_Y: "40"
+      WELL_FULL_Y: "360"
+      WELL_SAVE_DEBUG_IMAGES: "true"
+    volumes:
+      - /mnt/user/appdata/wellwellwell:/data

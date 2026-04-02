@@ -1,0 +1,11 @@
+[Unit]
+Description=WellWellWell one-shot collection
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=sysadmin
+WorkingDirectory=/home/sysadmin/wellwellwell
+EnvironmentFile=/home/sysadmin/wellwellwell/.env
+ExecStart=/home/sysadmin/wellwellwell/.venv/bin/wellwellwell collect

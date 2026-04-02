@@ -1,0 +1,11 @@
+[Unit]
+Description=Run WellWellWell collection every 15 minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=15min
+Unit=wellwellwell-collect.service
+Persistent=true
+
+[Install]
+WantedBy=timers.target
