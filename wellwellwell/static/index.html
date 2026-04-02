@@ -36,9 +36,48 @@
               <p id="gallons-remaining" class="level-subvalue">-- gallons remaining</p>
             </div>
             <div class="tank-wrap">
-              <div class="tank">
-                <div id="tank-fill" class="tank-fill"></div>
-              </div>
+              <svg id="tank-svg" viewBox="0 0 200 280" class="tank-svg" aria-label="Twin tank level indicator">
+                <defs>
+                  <linearGradient id="water-gradient-front" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#f48fb1"/>
+                    <stop offset="100%" stop-color="#880e4f"/>
+                  </linearGradient>
+                  <linearGradient id="water-gradient-back" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#f48fb1"/>
+                    <stop offset="100%" stop-color="#880e4f"/>
+                  </linearGradient>
+                  <clipPath id="back-clip">
+                    <rect x="60" y="30" width="100" height="230" rx="6"/>
+                  </clipPath>
+                  <clipPath id="front-clip">
+                    <rect x="32" y="50" width="110" height="230" rx="6"/>
+                  </clipPath>
+                </defs>
+
+                <!-- Back tank: y=30, h=230, 3 rings at equal spacing -->
+                <!-- 230 total, 3 rings of h=10 → 200 remaining / 4 gaps = 50 each -->
+                <!-- ring centers: 30+50=80, 80+10+50=140, 140+10+50=200 -->
+                <g class="tank-back">
+                  <rect x="60" y="30" width="100" height="230" rx="6" fill="#d8cfba" stroke="#b0a890" stroke-width="2"/>
+                  <rect x="58" y="80" width="104" height="10" rx="4" fill="#c7bca4" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect x="58" y="140" width="104" height="10" rx="4" fill="#c7bca4" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect x="58" y="200" width="104" height="10" rx="4" fill="#c7bca4" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect id="tank-fill-back" x="60" y="260" width="100" height="0" clip-path="url(#back-clip)" opacity="0.55"/>
+                </g>
+
+                <!-- Front tank: y=50, h=230, 3 rings at equal spacing -->
+                <!-- ring centers: 50+50=100, 100+10+50=160, 160+10+50=220 -->
+                <g class="tank-front">
+                  <rect x="32" y="50" width="110" height="230" rx="6" fill="#e9e2d0" stroke="#b0a890" stroke-width="2"/>
+                  <rect x="30" y="100" width="114" height="10" rx="4" fill="#d8cfba" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect x="30" y="160" width="114" height="10" rx="4" fill="#d8cfba" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect x="30" y="220" width="114" height="10" rx="4" fill="#d8cfba" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect id="tank-fill-front" x="32" y="280" width="110" height="0" clip-path="url(#front-clip)" opacity="0.85"/>
+                  <rect x="30" y="100" width="114" height="10" rx="4" fill="none" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect x="30" y="160" width="114" height="10" rx="4" fill="none" stroke="#b0a890" stroke-width="1.5"/>
+                  <rect x="30" y="220" width="114" height="10" rx="4" fill="none" stroke="#b0a890" stroke-width="1.5"/>
+                </g>
+              </svg>
             </div>
           </div>
         </article>
@@ -85,7 +124,7 @@
             <button class="range-btn" data-range="all">All</button>
           </div>
         </div>
-        <svg id="history-chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" aria-label="Water level history"></svg>
+        <svg id="history-chart" aria-label="Water level history"></svg>
       </section>
 
       <section class="panel table-panel">

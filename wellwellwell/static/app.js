@@ -1,7 +1,8 @@
 const levelValue = document.getElementById("level-value");
 const levelCaption = document.getElementById("level-caption");
 const gallonsRemaining = document.getElementById("gallons-remaining");
-const tankFill = document.getElementById("tank-fill");
+const tankFillFront = document.getElementById("tank-fill-front");
+const tankFillBack = document.getElementById("tank-fill-back");
 const statsLabel = document.getElementById("stats-label");
 const readingCount = document.getElementById("reading-count");
 const avgLevel = document.getElementById("avg-level");
@@ -72,12 +73,30 @@ function sinceParam(range) {
   return `&since=${encodeURIComponent(since)}`;
 }
 
+function setTankLevel(percent) {
+  const pct = Math.max(0, Math.min(100, percent ?? 0)) / 100;
+
+  // Front tank: body y=50, height=230, bottom at 280
+  const frontH = pct * 230;
+  const frontY = 280 - frontH;
+  tankFillFront.setAttribute("y", String(frontY));
+  tankFillFront.setAttribute("height", String(frontH));
+  tankFillFront.setAttribute("fill", "url(#water-gradient-front)");
+
+  // Back tank: body y=30, height=230, bottom at 260
+  const backH = pct * 230;
+  const backY = 260 - backH;
+  tankFillBack.setAttribute("y", String(backY));
+  tankFillBack.setAttribute("height", String(backH));
+  tankFillBack.setAttribute("fill", "url(#water-gradient-back)");
+}
+
 function setCurrentLevel(latest) {
   if (!latest) {
     levelValue.textContent = "--";
     levelCaption.textContent = "No reading yet";
     gallonsRemaining.textContent = "-- gallons remaining";
-    tankFill.style.height = "0%";
+    setTankLevel(0);
     latestImage.removeAttribute("src");
     latestMeta.textContent = "Waiting for a reading";
     return;
@@ -86,7 +105,7 @@ function setCurrentLevel(latest) {
   levelValue.textContent = formatPercent(latest.percent_full);
   levelCaption.textContent = `${latest.marker_found ? "Marker found" : "Marker missing"} \u2022 ${dateFormatter.format(new Date(latest.captured_at))}`;
   gallonsRemaining.textContent = `${formatGallons(latest.gallons_remaining)} remaining`;
-  tankFill.style.height = `${latest.percent_full ?? 0}%`;
+  setTankLevel(latest.percent_full);
 
   if (latest.debug_image_url || latest.crop_image_url) {
     latestImage.src = latest.debug_image_url || latest.crop_image_url;
@@ -139,14 +158,18 @@ function formatAxisDate(date, range) {
 function renderChart(readings) {
   chart.innerHTML = "";
 
+  const svgW = 900;
+  const svgH = 340;
+  chart.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+
   const points = readings
     .filter((reading) => reading.percent_full != null)
     .reverse();
 
   if (points.length < 2) {
     const message = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    message.setAttribute("x", "450");
-    message.setAttribute("y", "170");
+    message.setAttribute("x", String(svgW / 2));
+    message.setAttribute("y", String(svgH / 2));
     message.setAttribute("text-anchor", "middle");
     message.setAttribute("fill", "#5d6c63");
     message.setAttribute("font-size", "14");
@@ -156,18 +179,33 @@ function renderChart(readings) {
     return;
   }
 
-  const svgW = 900;
-  const svgH = 340;
   const padLeft = 52;
   const padRight = 20;
-  const padTop = 20;
+  const padTop = 24;
   const padBottom = 44;
   const usableW = svgW - padLeft - padRight;
   const usableH = svgH - padTop - padBottom;
 
-  // Y-axis labels and grid lines (0%, 25%, 50%, 75%, 100%)
-  for (let pct = 0; pct <= 100; pct += 25) {
-    const y = padTop + usableH - (pct / 100) * usableH;
+  // Auto-scale Y-axis to data range with padding
+  const levels = points.map((r) => r.percent_full);
+  const dataMin = Math.min(...levels);
+  const dataMax = Math.max(...levels);
+  const dataSpan = dataMax - dataMin;
+  const yPad = Math.max(dataSpan * 0.2, 2); // at least 2% padding
+  const yMin = Math.max(0, Math.floor((dataMin - yPad) / 5) * 5); // snap to 5%
+  const yMax = Math.min(100, Math.ceil((dataMax + yPad) / 5) * 5);
+  const yRange = yMax - yMin || 10; // avoid zero range
+
+  // Pick nice Y-axis tick interval
+  let yStep;
+  if (yRange <= 10) yStep = 2;
+  else if (yRange <= 25) yStep = 5;
+  else if (yRange <= 60) yStep = 10;
+  else yStep = 25;
+
+  // Y-axis labels and grid lines
+  for (let pct = yMin; pct <= yMax; pct += yStep) {
+    const y = padTop + usableH - ((pct - yMin) / yRange) * usableH;
 
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
     line.setAttribute("x1", String(padLeft));
@@ -186,10 +224,10 @@ function renderChart(readings) {
     chart.appendChild(label);
   }
 
-  // Compute point positions
+  // Compute point positions using auto-scaled Y range
   const coords = points.map((reading, index) => {
     const x = padLeft + (usableW / (points.length - 1)) * index;
-    const y = padTop + usableH - (reading.percent_full / 100) * usableH;
+    const y = padTop + usableH - ((reading.percent_full - yMin) / yRange) * usableH;
     return { x, y, reading };
   });
 
