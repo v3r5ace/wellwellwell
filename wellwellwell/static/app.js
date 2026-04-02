@@ -1,5 +1,6 @@
 const levelValue = document.getElementById("level-value");
 const levelCaption = document.getElementById("level-caption");
+const gallonsRemaining = document.getElementById("gallons-remaining");
 const tankFill = document.getElementById("tank-fill");
 const readingCount = document.getElementById("reading-count");
 const avgLevel = document.getElementById("avg-level");
@@ -10,6 +11,7 @@ const latestMeta = document.getElementById("latest-meta");
 const chart = document.getElementById("history-chart");
 const readingsBody = document.getElementById("readings-body");
 const collectNowButton = document.getElementById("collect-now");
+const flushHistoryButton = document.getElementById("flush-history");
 const actionStatus = document.getElementById("action-status");
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
@@ -25,10 +27,15 @@ function formatConfidence(value) {
   return value == null ? "--" : `${Math.round(value * 100)}%`;
 }
 
+function formatGallons(value) {
+  return value == null ? "--" : `${Math.round(value).toLocaleString()} gal`;
+}
+
 function setCurrentLevel(latest) {
   if (!latest) {
     levelValue.textContent = "--";
     levelCaption.textContent = "No reading yet";
+    gallonsRemaining.textContent = "-- gallons remaining";
     tankFill.style.height = "0%";
     latestImage.removeAttribute("src");
     latestMeta.textContent = "Waiting for a reading";
@@ -37,6 +44,7 @@ function setCurrentLevel(latest) {
 
   levelValue.textContent = formatPercent(latest.percent_full);
   levelCaption.textContent = `${latest.marker_found ? "Marker found" : "Marker missing"} • ${dateFormatter.format(new Date(latest.captured_at))}`;
+  gallonsRemaining.textContent = `${formatGallons(latest.gallons_remaining)} remaining`;
   tankFill.style.height = `${latest.percent_full ?? 0}%`;
 
   if (latest.debug_image_url || latest.crop_image_url) {
@@ -129,7 +137,7 @@ function renderTable(readings) {
 
   if (!readings.length) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="6" class="empty">No readings yet</td>';
+    row.innerHTML = '<td colspan="7" class="empty">No readings yet</td>';
     readingsBody.appendChild(row);
     return;
   }
@@ -139,6 +147,7 @@ function renderTable(readings) {
     row.innerHTML = `
       <td>${dateFormatter.format(new Date(reading.captured_at))}</td>
       <td>${formatPercent(reading.percent_full)}</td>
+      <td>${formatGallons(reading.gallons_remaining)}</td>
       <td>${reading.marker_center_y == null ? "--" : reading.marker_center_y.toFixed(1)}</td>
       <td>${formatConfidence(reading.confidence)}</td>
       <td>${reading.source_kind}</td>
@@ -161,6 +170,7 @@ async function loadDashboard() {
   const status = await statusResponse.json();
   const readings = await readingsResponse.json();
 
+  flushHistoryButton.hidden = !status.admin?.flush_enabled;
   setCurrentLevel(status.latest);
   setSummary(status.summary);
   renderChart(readings.items);
@@ -182,9 +192,49 @@ collectNowButton.addEventListener("click", async () => {
     actionStatus.textContent = "Snapshot collected";
     await loadDashboard();
   } catch (error) {
-    actionStatus.textContent = error.message;
+    actionStatus.textContent = error?.message || "Collect failed";
   } finally {
     collectNowButton.disabled = false;
+    setTimeout(() => {
+      actionStatus.textContent = "";
+    }, 5000);
+  }
+});
+
+flushHistoryButton.addEventListener("click", async () => {
+  const password = window.prompt("Enter the flush password to delete stored history and snapshots.");
+  if (!password) {
+    return;
+  }
+
+  const confirmed = window.confirm("This will permanently delete all stored readings and generated snapshots. Continue?");
+  if (!confirmed) {
+    return;
+  }
+
+  flushHistoryButton.disabled = true;
+  actionStatus.textContent = "Flushing stored history...";
+
+  try {
+    const response = await fetch("/api/admin/flush", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ password }),
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.detail || "Flush failed");
+    }
+
+    actionStatus.textContent = `Flushed ${payload.deleted_readings} readings`;
+    await loadDashboard();
+  } catch (error) {
+    actionStatus.textContent = error?.message || "Flush failed";
+  } finally {
+    flushHistoryButton.disabled = false;
     setTimeout(() => {
       actionStatus.textContent = "";
     }, 5000);

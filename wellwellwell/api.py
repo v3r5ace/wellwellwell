@@ -1,14 +1,20 @@
 from __future__ import annotations
 
 from pathlib import Path
+import secrets
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 from .config import AppConfig, load_config
 from .db import fetch_latest_reading, fetch_recent_readings, fetch_recent_summary, initialize_database
-from .service import collect_once, serialize_reading
+from .service import collect_once, compute_gallons_remaining, flush_history, serialize_reading
+
+
+class FlushRequest(BaseModel):
+    password: str
 
 
 def create_app(config: AppConfig | None = None) -> FastAPI:
@@ -45,6 +51,8 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         return {
             "camera": {
                 "mode": mode,
+                "rtsp_transport": active_config.ffmpeg_rtsp_transport,
+                "ffmpeg_capture_timeout_seconds": active_config.ffmpeg_capture_timeout_seconds,
                 "crop": {
                     "x": active_config.crop.x,
                     "y": active_config.crop.y,
@@ -55,21 +63,31 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
                     "empty_y": active_config.empty_y,
                     "full_y": active_config.full_y,
                 },
+                "full_gallons": active_config.full_gallons,
             },
             "collector": {
                 "enabled": active_config.enable_collector,
                 "interval_minutes": active_config.collect_interval_minutes,
                 "collect_on_startup": active_config.collect_on_startup,
             },
-            "latest": serialize_reading(latest),
-            "summary": summary,
+            "admin": {
+                "flush_enabled": bool(active_config.flush_password),
+            },
+            "latest": serialize_reading(latest, active_config),
+            "summary": {
+                **summary,
+                "avg_gallons_remaining": compute_gallons_remaining(
+                    summary["avg_percent_full"],
+                    active_config.full_gallons,
+                ),
+            },
         }
 
     @app.get("/api/readings")
     async def readings(limit: int = Query(default=96, ge=1, le=1000)) -> dict[str, object]:
         records = fetch_recent_readings(active_config.db_path, limit=limit)
         return {
-            "items": [serialize_reading(record) for record in records],
+            "items": [serialize_reading(record, active_config) for record in records],
         }
 
     @app.post("/api/collect")
@@ -81,7 +99,21 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         except Exception as exc:  # pragma: no cover - useful for operational debugging
             raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-        return {"reading": serialize_reading(reading)}
+        return {"reading": serialize_reading(reading, active_config)}
+
+    @app.post("/api/admin/flush")
+    async def admin_flush(request: FlushRequest) -> dict[str, object]:
+        if not active_config.flush_password:
+            raise HTTPException(status_code=403, detail="Flush password is not configured")
+
+        if not secrets.compare_digest(request.password, active_config.flush_password):
+            raise HTTPException(status_code=403, detail="Invalid flush password")
+
+        result = flush_history(active_config)
+        return {
+            "status": "ok",
+            **result,
+        }
 
     return app
 

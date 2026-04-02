@@ -62,7 +62,7 @@ def main() -> None:
         if sample_image is not None and not sample_image.exists():
             raise SystemExit(f"Sample image not found: {sample_image}")
         reading = collect_once(config, sample_image=sample_image)
-        print(json.dumps(serialize_reading(reading), indent=2))
+        print(json.dumps(serialize_reading(reading, config), indent=2))
         return
 
     if args.command == "serve":

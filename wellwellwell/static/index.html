@@ -10,14 +10,15 @@
     <main class="shell">
       <section class="hero">
         <div>
-          <p class="eyebrow">Local Well Monitor</p>
+          <p class="eyebrow">Compound Well Monitor</p>
           <h1>Water Level At A Glance</h1>
           <p class="lede">
-            Fixed-camera measurement, local detection, and a fast dashboard built for a headless Ubuntu box.
+            Community water management, shared well tracking, and clear historical visibility from a fixed camera.
           </p>
         </div>
         <div class="hero-actions">
           <button id="collect-now" class="button">Collect Now</button>
+          <button id="flush-history" class="button button-secondary" hidden>Flush History</button>
           <p id="action-status" class="muted"></p>
         </div>
       </section>
@@ -29,6 +30,7 @@
             <div>
               <div id="level-value" class="level-value">--</div>
               <p id="level-caption" class="muted">No reading yet</p>
+              <p id="gallons-remaining" class="level-subvalue">-- gallons remaining</p>
             </div>
             <div class="tank-wrap">
               <div class="tank">
@@ -90,6 +92,7 @@
               <tr>
                 <th>Captured</th>
                 <th>Level</th>
+                <th>Gallons</th>
                 <th>Marker Y</th>
                 <th>Confidence</th>
                 <th>Source</th>
@@ -98,7 +101,7 @@
             </thead>
             <tbody id="readings-body">
               <tr>
-                <td colspan="6" class="empty">No readings yet</td>
+                <td colspan="7" class="empty">No readings yet</td>
               </tr>
             </tbody>
           </table>

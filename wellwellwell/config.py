@@ -46,6 +46,8 @@ class AppConfig:
     camera_password: str | None
     ffmpeg_path: str
     ffmpeg_rtsp_transport: str
+    ffmpeg_capture_timeout_seconds: int
+    ffmpeg_rw_timeout_microseconds: int
     crop: CropRect
     blue_hsv_lower: tuple[int, int, int]
     blue_hsv_upper: tuple[int, int, int]
@@ -53,12 +55,14 @@ class AppConfig:
     min_contour_area: int
     empty_y: float
     full_y: float
+    full_gallons: float
     save_debug_images: bool
     bind_host: str
     bind_port: int
     enable_collector: bool
     collect_interval_minutes: int
     collect_on_startup: bool
+    flush_password: str | None
 
     def ensure_dirs(self) -> None:
         self.data_dir.mkdir(parents=True, exist_ok=True)
@@ -75,7 +79,7 @@ def load_config() -> AppConfig:
         os.getenv("WELL_SNAPSHOTS_DIR", data_dir / "snapshots")
     ).expanduser().resolve()
 
-    crop = CropRect.from_csv(os.getenv("WELL_CROP", "1470,150,220,450"))
+    crop = CropRect.from_csv(os.getenv("WELL_CROP", "1450,0,250,580"))
     blue_lower = _parse_int_csv(os.getenv("WELL_BLUE_HSV_LOWER", "90,60,40"), 3, "WELL_BLUE_HSV_LOWER")
     blue_upper = _parse_int_csv(os.getenv("WELL_BLUE_HSV_UPPER", "140,255,255"), 3, "WELL_BLUE_HSV_UPPER")
 
@@ -92,17 +96,21 @@ def load_config() -> AppConfig:
         camera_password=os.getenv("CAMERA_PASSWORD"),
         ffmpeg_path=os.getenv("FFMPEG_PATH", "ffmpeg"),
         ffmpeg_rtsp_transport=os.getenv("FFMPEG_RTSP_TRANSPORT", "tcp"),
+        ffmpeg_capture_timeout_seconds=int(os.getenv("FFMPEG_CAPTURE_TIMEOUT_SECONDS", "25")),
+        ffmpeg_rw_timeout_microseconds=int(os.getenv("FFMPEG_RW_TIMEOUT_MICROSECONDS", "15000000")),
         crop=crop,
         blue_hsv_lower=blue_lower,
         blue_hsv_upper=blue_upper,
         expected_marker_x=expected_marker_x,
         min_contour_area=int(os.getenv("WELL_MIN_CONTOUR_AREA", "80")),
-        empty_y=float(os.getenv("WELL_EMPTY_Y", "40")),
-        full_y=float(os.getenv("WELL_FULL_Y", "360")),
+        empty_y=float(os.getenv("WELL_EMPTY_Y", "190")),
+        full_y=float(os.getenv("WELL_FULL_Y", "510")),
+        full_gallons=float(os.getenv("WELL_FULL_GALLONS", "7500")),
         save_debug_images=_parse_bool(os.getenv("WELL_SAVE_DEBUG_IMAGES"), True),
         bind_host=os.getenv("WELL_BIND_HOST", "0.0.0.0"),
         bind_port=int(os.getenv("WELL_BIND_PORT", "8000")),
         enable_collector=_parse_bool(os.getenv("WELL_ENABLE_COLLECTOR"), False),
         collect_interval_minutes=int(os.getenv("WELL_COLLECT_INTERVAL_MINUTES", "15")),
         collect_on_startup=_parse_bool(os.getenv("WELL_COLLECT_ON_STARTUP"), True),
+        flush_password=os.getenv("WELL_FLUSH_PASSWORD") or None,
     )

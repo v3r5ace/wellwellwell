@@ -25,9 +25,9 @@ Usage:
 
 Examples:
   CAMERA_RTSP_URL='rtsps://protect-host-or-ip:7441/stream-token?enableSrtp' \
-  WELL_CROP='1470,150,220,450' \
-  WELL_EMPTY_Y='40' \
-  WELL_FULL_Y='360' \
+  WELL_CROP='1450,0,250,580' \
+  WELL_EMPTY_Y='190' \
+  WELL_FULL_Y='510' \
   ./scripts/bootstrap-ubuntu.sh
 EOF
 }

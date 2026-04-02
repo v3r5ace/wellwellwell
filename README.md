@@ -8,7 +8,8 @@ This version is now Docker-first for Unraid:
 2. Crop the small region that contains the cable and blue weight.
 3. Detect the blue weight locally with OpenCV.
 4. Convert the marker position into `% full` with a one-time calibration.
-5. Store the readings in SQLite and show them in a fast local web dashboard.
+5. Estimate gallons remaining from a full-capacity value.
+6. Store the readings in SQLite and show them in a fast local web dashboard.
 
 ## Stack
 
@@ -56,9 +57,11 @@ The main variables are:
 - `WELL_CROP`
 - `WELL_EMPTY_Y`
 - `WELL_FULL_Y`
+- `WELL_FULL_GALLONS`
 - `WELL_ENABLE_COLLECTOR`
 - `WELL_COLLECT_INTERVAL_MINUTES`
 - `WELL_COLLECT_ON_STARTUP`
+- `WELL_FLUSH_PASSWORD`
 - `WELL_DATA_DIR`
 - `WELL_DB_PATH`
 - `WELL_SNAPSHOTS_DIR`
@@ -86,7 +89,18 @@ The code computes:
 
 `percent_full = ((marker_y - empty_y) / (full_y - empty_y)) * 100`
 
+Gallons remaining are estimated as:
+
+`gallons_remaining = percent_full * WELL_FULL_GALLONS / 100`
+
 Because your float mechanism is inverted, larger `y` means the marker is lower in the frame and the well is fuller.
+
+## Admin actions
+
+If `WELL_FLUSH_PASSWORD` is set, the dashboard exposes a password-protected `Flush History` button that deletes:
+
+- all stored readings from SQLite
+- all generated raw, crop, and debug snapshots under `/data/snapshots`
 
 ## Detection notes
 

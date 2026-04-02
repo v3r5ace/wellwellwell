@@ -184,3 +184,11 @@ def fetch_recent_summary(db_path: Path, hours: int = 24) -> dict[str, Any]:
         "max_percent_full": row["max_percent_full"] if row else None,
         "avg_confidence": row["avg_confidence"] if row else None,
     }
+
+
+def delete_all_readings(db_path: Path) -> int:
+    with connect(db_path) as connection:
+        cursor = connection.execute("delete from readings")
+        deleted_count = int(cursor.rowcount or 0)
+        connection.execute("delete from sqlite_sequence where name = 'readings'")
+    return deleted_count

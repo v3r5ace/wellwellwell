@@ -31,6 +31,8 @@ def capture_snapshot(config: AppConfig, destination: Path) -> str:
             "-hide_banner",
             "-loglevel",
             "error",
+            "-rw_timeout",
+            str(config.ffmpeg_rw_timeout_microseconds),
             "-rtsp_transport",
             config.ffmpeg_rtsp_transport,
             "-y",
@@ -42,7 +44,34 @@ def capture_snapshot(config: AppConfig, destination: Path) -> str:
             "2",
             str(destination),
         ]
-        subprocess.run(command, check=True)
+
+        try:
+            completed = subprocess.run(
+                command,
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=config.ffmpeg_capture_timeout_seconds,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise RuntimeError(
+                "Timed out while connecting to the camera stream. "
+                "Check CAMERA_RTSP_URL, network reachability from the container, and ffmpeg transport settings."
+            ) from exc
+        except subprocess.CalledProcessError as exc:
+            stderr = (exc.stderr or "").strip()
+            raise RuntimeError(
+                "ffmpeg could not capture a frame from the camera stream. "
+                f"stderr: {stderr or 'no stderr output'}"
+            ) from exc
+
+        if not destination.exists():
+            stderr = (completed.stderr or "").strip()
+            raise RuntimeError(
+                "ffmpeg exited without producing a snapshot. "
+                f"stderr: {stderr or 'no stderr output'}"
+            )
+
         return "rtsp"
 
     raise RuntimeError("Set CAMERA_SNAPSHOT_URL or CAMERA_RTSP_URL before collecting a live reading")

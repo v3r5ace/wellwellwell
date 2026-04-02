@@ -58,13 +58,18 @@ docker run -d \
   -e WELL_COLLECT_INTERVAL_MINUTES=15 \
   -e WELL_COLLECT_ON_STARTUP=true \
   -e CAMERA_RTSP_URL='rtsps://protect-host-or-ip:7441/replace-with-your-stream-token?enableSrtp' \
-  -e WELL_CROP='1470,150,220,450' \
+  -e FFMPEG_RTSP_TRANSPORT='tcp' \
+  -e FFMPEG_CAPTURE_TIMEOUT_SECONDS='25' \
+  -e FFMPEG_RW_TIMEOUT_MICROSECONDS='15000000' \
+  -e WELL_CROP='1450,0,250,580' \
   -e WELL_BLUE_HSV_LOWER='90,60,40' \
   -e WELL_BLUE_HSV_UPPER='140,255,255' \
   -e WELL_MIN_CONTOUR_AREA=80 \
-  -e WELL_EMPTY_Y=40 \
-  -e WELL_FULL_Y=360 \
+  -e WELL_EMPTY_Y=190 \
+  -e WELL_FULL_Y=510 \
+  -e WELL_FULL_GALLONS=7500 \
   -e WELL_SAVE_DEBUG_IMAGES=true \
+  -e WELL_FLUSH_PASSWORD='replace-with-a-real-password' \
   -v /mnt/user/appdata/wellwellwell:/data \
   wellwellwell:local
 ```
@@ -101,6 +106,14 @@ docker logs -f wellwellwell
 docker exec -it wellwellwell wellwellwell collect
 docker exec -it wellwellwell wellwellwell collect --image /data/snapshots/raw/sample.jpg
 ```
+
+If `Collect Now` appears to hang, check `docker logs -f wellwellwell`. The app now returns a timeout or `ffmpeg` error message instead of waiting forever, and the most common causes are:
+
+- the RTSPS URL is wrong or expired
+- the container cannot reach the camera IP
+- the Protect stream wants different transport handling
+
+If `WELL_FLUSH_PASSWORD` is set, the dashboard also exposes a password-protected `Flush History` button that clears SQLite readings and generated snapshot files.
 
 ## Tuning flow
 
