@@ -186,6 +186,20 @@ def fetch_recent_summary(db_path: Path, hours: int = 24) -> dict[str, Any]:
     }
 
 
+def fetch_reading_by_id(db_path: Path, reading_id: int) -> ReadingRecord | None:
+    with connect(db_path) as connection:
+        row = connection.execute(
+            "select * from readings where id = ?", (reading_id,)
+        ).fetchone()
+    return _row_to_record(row)
+
+
+def delete_reading_by_id(db_path: Path, reading_id: int) -> bool:
+    with connect(db_path) as connection:
+        cursor = connection.execute("delete from readings where id = ?", (reading_id,))
+    return (cursor.rowcount or 0) > 0
+
+
 def delete_all_readings(db_path: Path) -> int:
     with connect(db_path) as connection:
         cursor = connection.execute("delete from readings")

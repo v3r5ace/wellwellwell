@@ -12,7 +12,19 @@ const chart = document.getElementById("history-chart");
 const readingsBody = document.getElementById("readings-body");
 const collectNowButton = document.getElementById("collect-now");
 const flushHistoryButton = document.getElementById("flush-history");
+const bottomActions = document.getElementById("bottom-actions");
 const actionStatus = document.getElementById("action-status");
+
+const readingModal = document.getElementById("reading-modal");
+const modalClose = document.getElementById("modal-close");
+const modalCropImage = document.getElementById("modal-crop-image");
+const modalDebugImage = document.getElementById("modal-debug-image");
+const modalMeta = document.getElementById("modal-meta");
+const modalActions = document.getElementById("modal-actions");
+const modalDelete = document.getElementById("modal-delete");
+
+let flushEnabled = false;
+let activeReadingId = null;
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -153,9 +165,83 @@ function renderTable(readings) {
       <td>${reading.source_kind}</td>
       <td>${reading.notes}</td>
     `;
+    row.addEventListener("click", () => openReadingModal(reading));
     readingsBody.appendChild(row);
   }
 }
+
+function openReadingModal(reading) {
+  activeReadingId = reading.id;
+
+  if (reading.crop_image_url) {
+    modalCropImage.src = reading.crop_image_url;
+    modalCropImage.parentElement.hidden = false;
+  } else {
+    modalCropImage.removeAttribute("src");
+    modalCropImage.parentElement.hidden = true;
+  }
+
+  if (reading.debug_image_url) {
+    modalDebugImage.src = reading.debug_image_url;
+    modalDebugImage.parentElement.hidden = false;
+  } else {
+    modalDebugImage.removeAttribute("src");
+    modalDebugImage.parentElement.hidden = true;
+  }
+
+  modalMeta.innerHTML = `
+    <div><dt>Captured</dt><dd>${dateFormatter.format(new Date(reading.captured_at))}</dd></div>
+    <div><dt>Level</dt><dd>${formatPercent(reading.percent_full)}</dd></div>
+    <div><dt>Gallons</dt><dd>${formatGallons(reading.gallons_remaining)}</dd></div>
+    <div><dt>Confidence</dt><dd>${formatConfidence(reading.confidence)}</dd></div>
+    <div><dt>Marker Y</dt><dd>${reading.marker_center_y == null ? "--" : reading.marker_center_y.toFixed(1)}</dd></div>
+    <div><dt>Source</dt><dd>${reading.source_kind}</dd></div>
+  `;
+
+  modalActions.hidden = !flushEnabled;
+  readingModal.hidden = false;
+}
+
+function closeReadingModal() {
+  readingModal.hidden = true;
+  activeReadingId = null;
+}
+
+modalClose.addEventListener("click", closeReadingModal);
+
+readingModal.addEventListener("click", (e) => {
+  if (e.target === readingModal) closeReadingModal();
+});
+
+modalDelete.addEventListener("click", async () => {
+  const password = window.prompt("Enter the flush password to delete this reading.");
+  if (!password) return;
+
+  const confirmed = window.confirm("Delete this reading and its images? This cannot be undone.");
+  if (!confirmed) return;
+
+  modalDelete.disabled = true;
+
+  try {
+    const response = await fetch(`/api/readings/${activeReadingId}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.detail || "Delete failed");
+    }
+
+    closeReadingModal();
+    await loadDashboard();
+  } catch (error) {
+    window.alert(error?.message || "Delete failed");
+  } finally {
+    modalDelete.disabled = false;
+  }
+});
 
 async function loadDashboard() {
   const [statusResponse, readingsResponse] = await Promise.all([
@@ -170,7 +256,8 @@ async function loadDashboard() {
   const status = await statusResponse.json();
   const readings = await readingsResponse.json();
 
-  flushHistoryButton.hidden = !status.admin?.flush_enabled;
+  flushEnabled = !!status.admin?.flush_enabled;
+  bottomActions.hidden = !flushEnabled;
   setCurrentLevel(status.latest);
   setSummary(status.summary);
   renderChart(readings.items);
