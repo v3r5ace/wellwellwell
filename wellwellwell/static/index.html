@@ -21,7 +21,10 @@
           <h1>Water Level At A Glance</h1>
         </div>
         <div class="hero-actions">
-          <button id="collect-now" class="button">Collect Now</button>
+          <div class="hero-buttons">
+            <button id="refresh-btn" class="button button-outline" aria-label="Refresh">&#x21bb;</button>
+            <button id="collect-now" class="button">New Reading</button>
+          </div>
           <p id="action-status" class="muted"></p>
         </div>
       </section>
@@ -125,6 +128,7 @@
           </div>
         </div>
         <svg id="history-chart" aria-label="Water level history"></svg>
+        <p class="chart-tap-hint muted" id="chart-tap-hint">Tap chart to expand</p>
       </section>
 
       <section class="panel table-panel">
@@ -151,11 +155,22 @@
             </tbody>
           </table>
         </div>
+        <div class="pagination" id="pagination"></div>
       </section>
 
       <section id="bottom-actions" class="bottom-actions" hidden>
         <button id="flush-history" class="button button-secondary">Flush All History</button>
       </section>
+
+      <div id="chart-modal" class="modal-overlay" hidden>
+        <div class="modal-content modal-chart-content panel">
+          <div class="modal-header">
+            <p class="panel-label">History</p>
+            <button id="chart-modal-close" class="modal-close-btn" aria-label="Close">&times;</button>
+          </div>
+          <svg id="chart-modal-svg" aria-label="Water level history expanded"></svg>
+        </div>
+      </div>
 
       <div id="reading-modal" class="modal-overlay" hidden>
         <div class="modal-content panel">
