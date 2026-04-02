@@ -48,8 +48,8 @@ class AppConfig:
     ffmpeg_rtsp_transport: str
     ffmpeg_capture_timeout_seconds: int
     crop: CropRect
-    blue_hsv_lower: tuple[int, int, int]
-    blue_hsv_upper: tuple[int, int, int]
+    marker_hsv_lower: tuple[int, int, int]
+    marker_hsv_upper: tuple[int, int, int]
     expected_marker_x: int | None
     min_contour_area: int
     empty_y: float
@@ -60,6 +60,8 @@ class AppConfig:
     bind_port: int
     enable_collector: bool
     collect_interval_minutes: int
+    collect_start_hour: int
+    collect_end_hour: int
     collect_on_startup: bool
     flush_password: str | None
 
@@ -79,8 +81,14 @@ def load_config() -> AppConfig:
     ).expanduser().resolve()
 
     crop = CropRect.from_csv(os.getenv("WELL_CROP", "1450,0,250,580"))
-    blue_lower = _parse_int_csv(os.getenv("WELL_BLUE_HSV_LOWER", "95,90,60"), 3, "WELL_BLUE_HSV_LOWER")
-    blue_upper = _parse_int_csv(os.getenv("WELL_BLUE_HSV_UPPER", "140,255,255"), 3, "WELL_BLUE_HSV_UPPER")
+    marker_lower = _parse_int_csv(
+        os.getenv("WELL_MARKER_HSV_LOWER") or os.getenv("WELL_BLUE_HSV_LOWER", "140,80,100"),
+        3, "WELL_MARKER_HSV_LOWER",
+    )
+    marker_upper = _parse_int_csv(
+        os.getenv("WELL_MARKER_HSV_UPPER") or os.getenv("WELL_BLUE_HSV_UPPER", "175,255,255"),
+        3, "WELL_MARKER_HSV_UPPER",
+    )
 
     expected_marker_x_env = os.getenv("WELL_EXPECTED_MARKER_X")
     expected_marker_x = int(expected_marker_x_env) if expected_marker_x_env else None
@@ -97,8 +105,8 @@ def load_config() -> AppConfig:
         ffmpeg_rtsp_transport=os.getenv("FFMPEG_RTSP_TRANSPORT", "tcp"),
         ffmpeg_capture_timeout_seconds=int(os.getenv("FFMPEG_CAPTURE_TIMEOUT_SECONDS", "25")),
         crop=crop,
-        blue_hsv_lower=blue_lower,
-        blue_hsv_upper=blue_upper,
+        marker_hsv_lower=marker_lower,
+        marker_hsv_upper=marker_upper,
         expected_marker_x=expected_marker_x,
         min_contour_area=int(os.getenv("WELL_MIN_CONTOUR_AREA", "80")),
         empty_y=float(os.getenv("WELL_EMPTY_Y", "66")),
@@ -108,7 +116,9 @@ def load_config() -> AppConfig:
         bind_host=os.getenv("WELL_BIND_HOST", "0.0.0.0"),
         bind_port=int(os.getenv("WELL_BIND_PORT", "8000")),
         enable_collector=_parse_bool(os.getenv("WELL_ENABLE_COLLECTOR"), False),
-        collect_interval_minutes=int(os.getenv("WELL_COLLECT_INTERVAL_MINUTES", "15")),
+        collect_interval_minutes=int(os.getenv("WELL_COLLECT_INTERVAL_MINUTES", "60")),
+        collect_start_hour=int(os.getenv("WELL_COLLECT_START_HOUR", "8")),
+        collect_end_hour=int(os.getenv("WELL_COLLECT_END_HOUR", "20")),
         collect_on_startup=_parse_bool(os.getenv("WELL_COLLECT_ON_STARTUP"), True),
         flush_password=os.getenv("WELL_FLUSH_PASSWORD") or None,
     )

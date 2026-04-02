@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import datetime
 import logging
 import math
 import threading
@@ -36,10 +37,14 @@ class CollectorLoop:
         if self._thread is not None:
             self._thread.join()
 
+    def _is_within_collection_window(self) -> bool:
+        hour = datetime.datetime.now().hour
+        return self.config.collect_start_hour <= hour < self.config.collect_end_hour
+
     def _run(self) -> None:
         interval_seconds = max(60, self.config.collect_interval_minutes * 60)
 
-        if self.config.collect_on_startup:
+        if self.config.collect_on_startup and self._is_within_collection_window():
             self._collect_once()
 
         while not self._stop_event.is_set():
@@ -47,6 +52,10 @@ class CollectorLoop:
             logger.info("Next collection scheduled in %.1f seconds", sleep_seconds)
             if self._stop_event.wait(timeout=sleep_seconds):
                 break
+            if not self._is_within_collection_window():
+                logger.info("Outside collection window (%d:00–%d:00), skipping",
+                            self.config.collect_start_hour, self.config.collect_end_hour)
+                continue
             self._collect_once()
 
     def _collect_once(self) -> None:

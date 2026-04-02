@@ -138,8 +138,8 @@ sudo journalctl -u wellwellwell-collect.service -f
 
 Use this order when dialing the detector in:
 
-1. Confirm the crop contains the full travel path of the blue weight.
+1. Confirm the crop contains the full travel path of the marker weight.
 2. Confirm the latest debug image shows the chosen contour box in the right place.
-3. Adjust `WELL_BLUE_HSV_LOWER` and `WELL_BLUE_HSV_UPPER` if it misses or grabs the wrong object.
-4. Set `WELL_EXPECTED_MARKER_X` if there are competing blue objects in the crop.
+3. Adjust `WELL_MARKER_HSV_LOWER` and `WELL_MARKER_HSV_UPPER` if it misses or grabs the wrong object.
+4. Set `WELL_EXPECTED_MARKER_X` if there are competing colored objects in the crop.
 5. Re-check `WELL_EMPTY_Y` and `WELL_FULL_Y` with known states.

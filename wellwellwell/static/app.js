@@ -111,7 +111,7 @@ function renderChart(readings) {
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
   path.setAttribute("d", pathCommands.join(" "));
   path.setAttribute("fill", "none");
-  path.setAttribute("stroke", "#206a8f");
+  path.setAttribute("stroke", "#c2185b");
   path.setAttribute("stroke-width", "4");
   path.setAttribute("stroke-linecap", "round");
   path.setAttribute("stroke-linejoin", "round");
@@ -125,8 +125,8 @@ function renderChart(readings) {
     marker.setAttribute("cx", String(x));
     marker.setAttribute("cy", String(y));
     marker.setAttribute("r", "6");
-    marker.setAttribute("fill", "#8ecff9");
-    marker.setAttribute("stroke", "#0f4d69");
+    marker.setAttribute("fill", "#f48fb1");
+    marker.setAttribute("stroke", "#880e4f");
     marker.setAttribute("stroke-width", "3");
     chart.appendChild(marker);
   }

@@ -5,8 +5,8 @@ Local-first well water level monitoring for a fixed UniFi G5 Pro camera.
 This version is now Docker-first for Unraid:
 
 1. Grab one frame every 15 minutes from UniFi Protect over RTSP or a snapshot URL.
-2. Crop the small region that contains the cable and blue weight.
-3. Detect the blue weight locally with OpenCV.
+2. Crop the small region that contains the cable and marker weight.
+3. Detect the marker weight locally with OpenCV.
 4. Convert the marker position into `% full` with a one-time calibration.
 5. Estimate gallons remaining from a full-capacity value.
 6. Store the readings in SQLite and show them in a fast local web dashboard.

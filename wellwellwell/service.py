@@ -12,7 +12,7 @@ import cv2
 from .capture import capture_snapshot, ingest_local_image
 from .config import AppConfig
 from .db import ReadingRecord, delete_all_readings, initialize_database, insert_reading
-from .detector import annotate_detection, crop_frame, detect_blue_marker
+from .detector import annotate_detection, crop_frame, detect_marker
 
 _storage_lock = threading.Lock()
 
@@ -78,7 +78,7 @@ def collect_once(config: AppConfig, sample_image: Path | None = None) -> Reading
         if not cv2.imwrite(str(crop_path), crop):
             raise RuntimeError(f"Unable to write crop image to {crop_path}")
 
-        detection = detect_blue_marker(crop, config)
+        detection = detect_marker(crop, config)
         percent_full = compute_percent_full(detection.marker_center_y, config.empty_y, config.full_y)
 
         debug_rel_path: str | None = None

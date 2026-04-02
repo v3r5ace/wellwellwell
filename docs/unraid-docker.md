@@ -61,8 +61,8 @@ docker run -d \
   -e FFMPEG_RTSP_TRANSPORT='tcp' \
   -e FFMPEG_CAPTURE_TIMEOUT_SECONDS='25' \
   -e WELL_CROP='1450,0,250,580' \
-  -e WELL_BLUE_HSV_LOWER='95,90,60' \
-  -e WELL_BLUE_HSV_UPPER='140,255,255' \
+  -e WELL_MARKER_HSV_LOWER='140,80,100' \
+  -e WELL_MARKER_HSV_UPPER='175,255,255' \
   -e WELL_MIN_CONTOUR_AREA=80 \
   -e WELL_EMPTY_Y=66 \
   -e WELL_FULL_Y=484 \
@@ -118,9 +118,9 @@ If `WELL_FLUSH_PASSWORD` is set, the dashboard also exposes a password-protected
 
 Use this order when dialing the detector in:
 
-1. Confirm the crop contains the full travel path of the blue weight.
+1. Confirm the crop contains the full travel path of the marker weight.
 2. Confirm the latest debug image shows the chosen contour box in the right place.
-3. Adjust `WELL_BLUE_HSV_LOWER` and `WELL_BLUE_HSV_UPPER` if it misses or grabs the wrong object.
+3. Adjust `WELL_MARKER_HSV_LOWER` and `WELL_MARKER_HSV_UPPER` if it misses or grabs the wrong object.
 4. Set `WELL_EXPECTED_MARKER_X` if there are competing blue objects in the crop.
 5. Re-check `WELL_EMPTY_Y` and `WELL_FULL_Y` with known states.
 
