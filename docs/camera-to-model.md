@@ -22,7 +22,7 @@ That makes local CV much simpler and cheaper than calling a general-purpose visi
 The detector in [`wellwellwell/detector.py`](/Users/lpaine/Documents/GitHub/wellwellwell/wellwellwell/detector.py) does four things:
 
 1. Convert the cropped ROI to HSV.
-2. Threshold for the blue marker color range.
+2. Threshold for the marker color range.
 3. Clean the result with morphology.
 4. Score contours and choose the best marker candidate.
 

@@ -35,10 +35,10 @@ def crop_frame(image: np.ndarray, crop: CropRect) -> np.ndarray:
     return image[y1:y2, x1:x2].copy()
 
 
-def detect_blue_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
+def detect_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    lower = np.array(config.blue_hsv_lower, dtype=np.uint8)
-    upper = np.array(config.blue_hsv_upper, dtype=np.uint8)
+    lower = np.array(config.marker_hsv_lower, dtype=np.uint8)
+    upper = np.array(config.marker_hsv_upper, dtype=np.uint8)
 
     mask = cv2.inRange(hsv, lower, upper)
     kernel = np.ones((5, 5), np.uint8)
@@ -118,7 +118,7 @@ def detect_blue_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
             contour_area=float(area),
             confidence=confidence,
             notes=(
-                "Blue contour detected with "
+                "Marker detected with "
                 f"aspect_ratio={aspect_ratio:.2f} "
                 f"fill_ratio={fill_ratio:.2f} "
                 f"mean_s={mean_s:.1f} "
@@ -140,7 +140,7 @@ def detect_blue_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
             bbox_height=None,
             contour_area=None,
             confidence=0.0,
-            notes="No blue contour matched the configured thresholds",
+            notes="No marker contour matched the configured thresholds",
         )
 
     return best_candidate[1]

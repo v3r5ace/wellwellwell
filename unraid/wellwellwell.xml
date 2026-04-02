@@ -11,7 +11,7 @@
   <Project>https://github.com/REPLACE_ME_GITHUB_OWNER/REPLACE_ME_GITHUB_REPO</Project>
   <Overview>Local-first well water monitoring for a fixed UniFi G5 Pro camera.&#xD;
 &#xD;
-This container grabs a frame from UniFi Protect over RTSP or a snapshot URL, crops the well marker region, detects the blue weight locally with OpenCV, stores readings in SQLite, and serves a dashboard.&#xD;
+This container grabs a frame from UniFi Protect over RTSP or a snapshot URL, crops the well marker region, detects the marker weight locally with OpenCV, stores readings in SQLite, and serves a dashboard.&#xD;
 &#xD;
 Make the GitHub repository public so GitHub Container Registry can publish ghcr.io/OWNER/REPO:latest, then replace REPLACE_ME_GITHUB_OWNER and REPLACE_ME_GITHUB_REPO in this template before use.</Overview>
   <Category>HomeAutomation:Tools Monitoring:Status</Category>
@@ -26,14 +26,16 @@ Make the GitHub repository public so GitHub Container Registry can publish ghcr.
   <Config Name="WELL_DB_PATH" Target="WELL_DB_PATH" Default="/data/wellwellwell.sqlite3" Mode="" Description="SQLite database location." Type="Variable" Display="advanced" Required="true" Mask="false">/data/wellwellwell.sqlite3</Config>
   <Config Name="WELL_SNAPSHOTS_DIR" Target="WELL_SNAPSHOTS_DIR" Default="/data/snapshots" Mode="" Description="Directory for raw, crop, and debug images." Type="Variable" Display="advanced" Required="true" Mask="false">/data/snapshots</Config>
   <Config Name="WELL_ENABLE_COLLECTOR" Target="WELL_ENABLE_COLLECTOR" Default="true" Mode="" Description="Enable the built-in collector loop." Type="Variable" Display="always" Required="true" Mask="false">true</Config>
-  <Config Name="WELL_COLLECT_INTERVAL_MINUTES" Target="WELL_COLLECT_INTERVAL_MINUTES" Default="15" Mode="" Description="Minutes between collection runs." Type="Variable" Display="always" Required="true" Mask="false">15</Config>
-  <Config Name="WELL_COLLECT_ON_STARTUP" Target="WELL_COLLECT_ON_STARTUP" Default="true" Mode="" Description="Capture one reading immediately when the container starts." Type="Variable" Display="advanced" Required="true" Mask="false">true</Config>
+  <Config Name="WELL_COLLECT_INTERVAL_MINUTES" Target="WELL_COLLECT_INTERVAL_MINUTES" Default="60" Mode="" Description="Minutes between collection runs." Type="Variable" Display="always" Required="true" Mask="false">60</Config>
+  <Config Name="WELL_COLLECT_START_HOUR" Target="WELL_COLLECT_START_HOUR" Default="8" Mode="" Description="Hour (0-23) when collection window opens." Type="Variable" Display="always" Required="true" Mask="false">8</Config>
+  <Config Name="WELL_COLLECT_END_HOUR" Target="WELL_COLLECT_END_HOUR" Default="20" Mode="" Description="Hour (0-23) when collection window closes." Type="Variable" Display="always" Required="true" Mask="false">20</Config>
+  <Config Name="WELL_COLLECT_ON_STARTUP" Target="WELL_COLLECT_ON_STARTUP" Default="true" Mode="" Description="Capture one reading immediately when the container starts (if within collection window)." Type="Variable" Display="advanced" Required="true" Mask="false">true</Config>
   <Config Name="CAMERA_RTSP_URL" Target="CAMERA_RTSP_URL" Default="" Mode="" Description="UniFi Protect secure RTSP URL, for example rtsps://...:7441/... ?enableSrtp" Type="Variable" Display="always" Required="false" Mask="true"></Config>
   <Config Name="CAMERA_SNAPSHOT_URL" Target="CAMERA_SNAPSHOT_URL" Default="" Mode="" Description="Optional still-image snapshot URL. Leave blank when using RTSP." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="FFMPEG_RTSP_TRANSPORT" Target="FFMPEG_RTSP_TRANSPORT" Default="tcp" Mode="" Description="Transport passed to ffmpeg for RTSP/RTSPS capture." Type="Variable" Display="advanced" Required="true" Mask="false">tcp</Config>
   <Config Name="WELL_CROP" Target="WELL_CROP" Default="1450,0,250,580" Mode="" Description="Crop rectangle in x,y,width,height format." Type="Variable" Display="always" Required="true" Mask="false">1450,0,250,580</Config>
-  <Config Name="WELL_BLUE_HSV_LOWER" Target="WELL_BLUE_HSV_LOWER" Default="95,90,60" Mode="" Description="Lower HSV threshold for the blue marker." Type="Variable" Display="advanced" Required="true" Mask="false">95,90,60</Config>
-  <Config Name="WELL_BLUE_HSV_UPPER" Target="WELL_BLUE_HSV_UPPER" Default="140,255,255" Mode="" Description="Upper HSV threshold for the blue marker." Type="Variable" Display="advanced" Required="true" Mask="false">140,255,255</Config>
+  <Config Name="WELL_MARKER_HSV_LOWER" Target="WELL_MARKER_HSV_LOWER" Default="140,80,100" Mode="" Description="Lower HSV threshold for the marker." Type="Variable" Display="advanced" Required="true" Mask="false">140,80,100</Config>
+  <Config Name="WELL_MARKER_HSV_UPPER" Target="WELL_MARKER_HSV_UPPER" Default="175,255,255" Mode="" Description="Upper HSV threshold for the marker." Type="Variable" Display="advanced" Required="true" Mask="false">175,255,255</Config>
   <Config Name="WELL_MIN_CONTOUR_AREA" Target="WELL_MIN_CONTOUR_AREA" Default="80" Mode="" Description="Minimum contour area to consider as a marker candidate." Type="Variable" Display="advanced" Required="true" Mask="false">80</Config>
   <Config Name="WELL_EXPECTED_MARKER_X" Target="WELL_EXPECTED_MARKER_X" Default="" Mode="" Description="Optional expected X position of the marker within the cropped ROI." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
   <Config Name="WELL_EMPTY_Y" Target="WELL_EMPTY_Y" Default="66" Mode="" Description="Marker Y position when the well is empty." Type="Variable" Display="always" Required="true" Mask="false">66</Config>
