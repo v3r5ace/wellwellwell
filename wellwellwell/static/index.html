@@ -19,9 +19,6 @@
         <div>
           <p class="eyebrow">Compound Well Monitor</p>
           <h1>Water Level At A Glance</h1>
-          <p class="lede">
-            Community water management, shared well tracking, and clear historical visibility from a fixed camera.
-          </p>
         </div>
         <div class="hero-actions">
           <button id="collect-now" class="button">Collect Now</button>
@@ -29,7 +26,7 @@
         </div>
       </section>
 
-      <section class="grid">
+      <section class="grid top-grid">
         <article class="panel level-panel">
           <p class="panel-label">Current Level</p>
           <div class="level-row">
@@ -47,7 +44,7 @@
         </article>
 
         <article class="panel stats-panel">
-          <p class="panel-label">Last 24 Hours</p>
+          <p class="panel-label" id="stats-label">Last 24 Hours</p>
           <dl class="stats">
             <div>
               <dt>Readings</dt>
@@ -67,30 +64,34 @@
             </div>
           </dl>
         </article>
-      </section>
-
-      <section class="grid history-grid">
-        <article class="panel chart-panel">
-          <div class="panel-header">
-            <p class="panel-label">History</p>
-            <p id="chart-caption" class="muted">Last 96 readings</p>
-          </div>
-          <svg id="history-chart" viewBox="0 0 900 280" preserveAspectRatio="none" aria-label="Water level history"></svg>
-        </article>
 
         <article class="panel image-panel">
           <div class="panel-header">
-            <p class="panel-label">Latest Crop</p>
+            <p class="panel-label">Latest Detection</p>
             <p id="latest-meta" class="muted">Waiting for a reading</p>
           </div>
           <img id="latest-image" alt="Latest marker crop" />
         </article>
       </section>
 
+      <section class="panel chart-panel">
+        <div class="panel-header">
+          <p class="panel-label">History</p>
+          <div class="range-selector" id="range-selector">
+            <button class="range-btn" data-range="24h">24h</button>
+            <button class="range-btn" data-range="7d">7d</button>
+            <button class="range-btn active" data-range="1m">1mo</button>
+            <button class="range-btn" data-range="6m">6mo</button>
+            <button class="range-btn" data-range="all">All</button>
+          </div>
+        </div>
+        <svg id="history-chart" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid meet" aria-label="Water level history"></svg>
+      </section>
+
       <section class="panel table-panel">
         <div class="panel-header">
-          <p class="panel-label">Recent Readings</p>
-          <p class="muted">Newest first</p>
+          <p class="panel-label">Readings</p>
+          <p id="table-caption" class="muted">Newest first</p>
         </div>
         <div class="table-wrap">
           <table>
@@ -102,12 +103,11 @@
                 <th>Marker Y</th>
                 <th>Confidence</th>
                 <th>Source</th>
-                <th>Notes</th>
               </tr>
             </thead>
             <tbody id="readings-body">
               <tr>
-                <td colspan="7" class="empty">No readings yet</td>
+                <td colspan="6" class="empty">No readings yet</td>
               </tr>
             </tbody>
           </table>

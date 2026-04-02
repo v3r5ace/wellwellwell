@@ -150,12 +150,21 @@ def fetch_latest_reading(db_path: Path) -> ReadingRecord | None:
     return _row_to_record(row)
 
 
-def fetch_recent_readings(db_path: Path, limit: int = 96) -> list[ReadingRecord]:
-    with connect(db_path) as connection:
-        rows = connection.execute(
-            "select * from readings order by captured_at desc, id desc limit ?",
-            (limit,),
-        ).fetchall()
+def fetch_recent_readings(
+    db_path: Path, limit: int = 1000, since: str | None = None
+) -> list[ReadingRecord]:
+    if since:
+        with connect(db_path) as connection:
+            rows = connection.execute(
+                "select * from readings where captured_at >= ? order by captured_at desc, id desc limit ?",
+                (since, limit),
+            ).fetchall()
+    else:
+        with connect(db_path) as connection:
+            rows = connection.execute(
+                "select * from readings order by captured_at desc, id desc limit ?",
+                (limit,),
+            ).fetchall()
     return [record for row in rows if (record := _row_to_record(row)) is not None]
 
 
