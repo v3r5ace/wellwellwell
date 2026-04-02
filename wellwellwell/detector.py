@@ -49,6 +49,7 @@ def detect_blue_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
 
     best_candidate: tuple[float, DetectionResult] | None = None
     image_width = image.shape[1]
+    image_height = image.shape[0]
     expected_x = config.expected_marker_x if config.expected_marker_x is not None else image_width // 2
 
     for contour in contours:
@@ -61,13 +62,49 @@ def detect_blue_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
         center_y = y + (height / 2.0)
         aspect_ratio = height / max(width, 1)
         fill_ratio = area / max(width * height, 1)
+        width_ratio = width / max(image_width, 1)
+        height_ratio = height / max(image_height, 1)
+        touches_border = (
+            x <= 1
+            or y <= 1
+            or (x + width) >= (image_width - 1)
+            or (y + height) >= (image_height - 1)
+        )
+
+        if touches_border:
+            continue
+
+        if aspect_ratio < 1.5:
+            continue
+
+        if width_ratio > 0.18 or height_ratio > 0.35:
+            continue
+
+        contour_mask = np.zeros(image.shape[:2], dtype=np.uint8)
+        cv2.drawContours(contour_mask, [contour], -1, 255, thickness=-1)
+        mean_h, mean_s, mean_v, _ = cv2.mean(hsv, mask=contour_mask)
 
         area_score = min(area / max(config.min_contour_area * 5, 1), 1.0)
-        aspect_score = min(aspect_ratio / 2.5, 1.0) if aspect_ratio >= 1 else max(aspect_ratio, 0.1)
+        aspect_score = min(aspect_ratio / 4.0, 1.0)
         fill_score = min(fill_ratio / 0.65, 1.0)
         x_score = 1.0 - min(abs(center_x - expected_x) / max(image_width / 2.0, 1.0), 1.0)
+        saturation_score = max(0.0, min((mean_s - 80.0) / 120.0, 1.0))
+        value_score = max(0.0, min((mean_v - 50.0) / 120.0, 1.0))
+        target_width_ratio = 0.05
+        target_height_ratio = 0.10
+        width_score = max(0.0, 1.0 - (abs(width_ratio - target_width_ratio) / target_width_ratio))
+        height_score = max(0.0, 1.0 - (abs(height_ratio - target_height_ratio) / target_height_ratio))
 
-        score = (0.35 * area_score) + (0.25 * aspect_score) + (0.15 * fill_score) + (0.25 * x_score)
+        score = (
+            (0.12 * area_score)
+            + (0.18 * aspect_score)
+            + (0.08 * fill_score)
+            + (0.18 * x_score)
+            + (0.16 * saturation_score)
+            + (0.12 * value_score)
+            + (0.08 * width_score)
+            + (0.08 * height_score)
+        )
         confidence = min(0.99, 0.25 + (0.74 * score))
 
         result = DetectionResult(
@@ -80,7 +117,13 @@ def detect_blue_marker(image: np.ndarray, config: AppConfig) -> DetectionResult:
             bbox_height=height,
             contour_area=float(area),
             confidence=confidence,
-            notes=f"Blue contour detected with aspect_ratio={aspect_ratio:.2f} fill_ratio={fill_ratio:.2f}",
+            notes=(
+                "Blue contour detected with "
+                f"aspect_ratio={aspect_ratio:.2f} "
+                f"fill_ratio={fill_ratio:.2f} "
+                f"mean_s={mean_s:.1f} "
+                f"mean_v={mean_v:.1f}"
+            ),
         )
 
         if best_candidate is None or score > best_candidate[0]:

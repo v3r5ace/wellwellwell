@@ -79,7 +79,7 @@ def load_config() -> AppConfig:
     ).expanduser().resolve()
 
     crop = CropRect.from_csv(os.getenv("WELL_CROP", "1450,0,250,580"))
-    blue_lower = _parse_int_csv(os.getenv("WELL_BLUE_HSV_LOWER", "90,60,40"), 3, "WELL_BLUE_HSV_LOWER")
+    blue_lower = _parse_int_csv(os.getenv("WELL_BLUE_HSV_LOWER", "95,90,60"), 3, "WELL_BLUE_HSV_LOWER")
     blue_upper = _parse_int_csv(os.getenv("WELL_BLUE_HSV_UPPER", "140,255,255"), 3, "WELL_BLUE_HSV_UPPER")
 
     expected_marker_x_env = os.getenv("WELL_EXPECTED_MARKER_X")
@@ -101,8 +101,8 @@ def load_config() -> AppConfig:
         blue_hsv_upper=blue_upper,
         expected_marker_x=expected_marker_x,
         min_contour_area=int(os.getenv("WELL_MIN_CONTOUR_AREA", "80")),
-        empty_y=float(os.getenv("WELL_EMPTY_Y", "190")),
-        full_y=float(os.getenv("WELL_FULL_Y", "510")),
+        empty_y=float(os.getenv("WELL_EMPTY_Y", "66")),
+        full_y=float(os.getenv("WELL_FULL_Y", "484")),
         full_gallons=float(os.getenv("WELL_FULL_GALLONS", "7500")),
         save_debug_images=_parse_bool(os.getenv("WELL_SAVE_DEBUG_IMAGES"), True),
         bind_host=os.getenv("WELL_BIND_HOST", "0.0.0.0"),

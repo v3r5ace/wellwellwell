@@ -60,11 +60,11 @@ Environment variables:
 - `WELL_COLLECT_ON_STARTUP=true`
 - `CAMERA_RTSP_URL=rtsps://protect-host-or-ip:7441/your-stream-token?enableSrtp`
 - `WELL_CROP=1450,0,250,580`
-- `WELL_BLUE_HSV_LOWER=90,60,40`
+- `WELL_BLUE_HSV_LOWER=95,90,60`
 - `WELL_BLUE_HSV_UPPER=140,255,255`
 - `WELL_MIN_CONTOUR_AREA=80`
-- `WELL_EMPTY_Y=190`
-- `WELL_FULL_Y=510`
+- `WELL_EMPTY_Y=66`
+- `WELL_FULL_Y=484`
 - `WELL_FULL_GALLONS=7500`
 - `WELL_SAVE_DEBUG_IMAGES=true`
 - `WELL_FLUSH_PASSWORD=choose-a-real-password`
