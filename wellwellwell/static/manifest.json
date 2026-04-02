@@ -1,0 +1,20 @@
+{
+  "name": "WellWellWell",
+  "short_name": "Well",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#e9e2d0",
+  "theme_color": "#c2185b",
+  "icons": [
+    {
+      "src": "/assets/icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
