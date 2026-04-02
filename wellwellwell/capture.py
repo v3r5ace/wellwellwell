@@ -31,8 +31,6 @@ def capture_snapshot(config: AppConfig, destination: Path) -> str:
             "-hide_banner",
             "-loglevel",
             "error",
-            "-rw_timeout",
-            str(config.ffmpeg_rw_timeout_microseconds),
             "-rtsp_transport",
             config.ffmpeg_rtsp_transport,
             "-y",

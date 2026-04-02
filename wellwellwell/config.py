@@ -47,7 +47,6 @@ class AppConfig:
     ffmpeg_path: str
     ffmpeg_rtsp_transport: str
     ffmpeg_capture_timeout_seconds: int
-    ffmpeg_rw_timeout_microseconds: int
     crop: CropRect
     blue_hsv_lower: tuple[int, int, int]
     blue_hsv_upper: tuple[int, int, int]
@@ -97,7 +96,6 @@ def load_config() -> AppConfig:
         ffmpeg_path=os.getenv("FFMPEG_PATH", "ffmpeg"),
         ffmpeg_rtsp_transport=os.getenv("FFMPEG_RTSP_TRANSPORT", "tcp"),
         ffmpeg_capture_timeout_seconds=int(os.getenv("FFMPEG_CAPTURE_TIMEOUT_SECONDS", "25")),
-        ffmpeg_rw_timeout_microseconds=int(os.getenv("FFMPEG_RW_TIMEOUT_MICROSECONDS", "15000000")),
         crop=crop,
         blue_hsv_lower=blue_lower,
         blue_hsv_upper=blue_upper,

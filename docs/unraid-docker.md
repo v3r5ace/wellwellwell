@@ -60,7 +60,6 @@ docker run -d \
   -e CAMERA_RTSP_URL='rtsps://protect-host-or-ip:7441/replace-with-your-stream-token?enableSrtp' \
   -e FFMPEG_RTSP_TRANSPORT='tcp' \
   -e FFMPEG_CAPTURE_TIMEOUT_SECONDS='25' \
-  -e FFMPEG_RW_TIMEOUT_MICROSECONDS='15000000' \
   -e WELL_CROP='1450,0,250,580' \
   -e WELL_BLUE_HSV_LOWER='90,60,40' \
   -e WELL_BLUE_HSV_UPPER='140,255,255' \
