@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import secrets
+import uuid
 
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
@@ -14,6 +15,9 @@ from .ratelimit import auth_fail_limiter, collect_limiter
 from .service import collect_once, compute_gallons_remaining, delete_single_reading, flush_history, serialize_reading
 
 BLOCKED_EXTENSIONS = {".sqlite3", ".db", ".sqlite", ".sql", ".env"}
+
+# Generated once per process start — changes when the container is rebuilt/restarted.
+BUILD_ID = uuid.uuid4().hex[:12]
 
 
 class FlushRequest(BaseModel):
@@ -68,6 +72,7 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         summary = fetch_recent_summary(active_config.db_path, hours=24)
 
         return {
+            "build_id": BUILD_ID,
             "collector": {
                 "enabled": active_config.enable_collector,
                 "interval_minutes": active_config.collect_interval_minutes,
