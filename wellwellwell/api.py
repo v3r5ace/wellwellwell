@@ -87,8 +87,11 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         }
 
     @app.get("/api/readings")
-    async def readings(limit: int = Query(default=96, ge=1, le=1000)) -> dict[str, object]:
-        records = fetch_recent_readings(active_config.db_path, limit=limit)
+    async def readings(
+        limit: int = Query(default=1000, ge=1, le=10000),
+        since: str | None = Query(default=None),
+    ) -> dict[str, object]:
+        records = fetch_recent_readings(active_config.db_path, limit=limit, since=since)
         return {
             "items": [serialize_reading(record, active_config) for record in records],
         }

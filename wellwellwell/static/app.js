@@ -2,6 +2,7 @@ const levelValue = document.getElementById("level-value");
 const levelCaption = document.getElementById("level-caption");
 const gallonsRemaining = document.getElementById("gallons-remaining");
 const tankFill = document.getElementById("tank-fill");
+const statsLabel = document.getElementById("stats-label");
 const readingCount = document.getElementById("reading-count");
 const avgLevel = document.getElementById("avg-level");
 const levelRange = document.getElementById("level-range");
@@ -10,10 +11,12 @@ const latestImage = document.getElementById("latest-image");
 const latestMeta = document.getElementById("latest-meta");
 const chart = document.getElementById("history-chart");
 const readingsBody = document.getElementById("readings-body");
+const tableCaption = document.getElementById("table-caption");
 const collectNowButton = document.getElementById("collect-now");
 const flushHistoryButton = document.getElementById("flush-history");
 const bottomActions = document.getElementById("bottom-actions");
 const actionStatus = document.getElementById("action-status");
+const rangeSelector = document.getElementById("range-selector");
 
 const readingModal = document.getElementById("reading-modal");
 const modalClose = document.getElementById("modal-close");
@@ -25,10 +28,29 @@ const modalDelete = document.getElementById("modal-delete");
 
 let flushEnabled = false;
 let activeReadingId = null;
+let currentRange = "1m";
+
+const RANGES = {
+  "24h": { hours: 24, label: "Last 24 Hours" },
+  "7d": { hours: 168, label: "Last 7 Days" },
+  "1m": { hours: 730, label: "Last Month" },
+  "6m": { hours: 4380, label: "Last 6 Months" },
+  "all": { hours: null, label: "All Time" },
+};
 
 const dateFormatter = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
+});
+
+const shortDateFormatter = new Intl.DateTimeFormat(undefined, {
+  month: "short",
+  day: "numeric",
+});
+
+const shortTimeFormatter = new Intl.DateTimeFormat(undefined, {
+  hour: "numeric",
+  minute: "2-digit",
 });
 
 function formatPercent(value) {
@@ -43,6 +65,13 @@ function formatGallons(value) {
   return value == null ? "--" : `${Math.round(value).toLocaleString()} gal`;
 }
 
+function sinceParam(range) {
+  const info = RANGES[range];
+  if (!info || !info.hours) return "";
+  const since = new Date(Date.now() - info.hours * 3600000).toISOString();
+  return `&since=${encodeURIComponent(since)}`;
+}
+
 function setCurrentLevel(latest) {
   if (!latest) {
     levelValue.textContent = "--";
@@ -55,28 +84,56 @@ function setCurrentLevel(latest) {
   }
 
   levelValue.textContent = formatPercent(latest.percent_full);
-  levelCaption.textContent = `${latest.marker_found ? "Marker found" : "Marker missing"} • ${dateFormatter.format(new Date(latest.captured_at))}`;
+  levelCaption.textContent = `${latest.marker_found ? "Marker found" : "Marker missing"} \u2022 ${dateFormatter.format(new Date(latest.captured_at))}`;
   gallonsRemaining.textContent = `${formatGallons(latest.gallons_remaining)} remaining`;
   tankFill.style.height = `${latest.percent_full ?? 0}%`;
 
   if (latest.debug_image_url || latest.crop_image_url) {
     latestImage.src = latest.debug_image_url || latest.crop_image_url;
-    latestMeta.textContent = `Confidence ${formatConfidence(latest.confidence)} • Y ${latest.marker_center_y == null ? "--" : latest.marker_center_y.toFixed(1)}`;
+    latestMeta.textContent = `Confidence ${formatConfidence(latest.confidence)} \u2022 Y ${latest.marker_center_y == null ? "--" : latest.marker_center_y.toFixed(1)}`;
   } else {
     latestImage.removeAttribute("src");
     latestMeta.textContent = "No crop image available";
   }
 }
 
+function computeSummary(readings) {
+  const valid = readings.filter((r) => r.percent_full != null);
+  if (!valid.length) {
+    return {
+      reading_count: readings.length,
+      avg_percent_full: null,
+      min_percent_full: null,
+      max_percent_full: null,
+      avg_confidence: null,
+    };
+  }
+  const levels = valid.map((r) => r.percent_full);
+  const confs = valid.map((r) => r.confidence);
+  return {
+    reading_count: readings.length,
+    avg_percent_full: levels.reduce((a, b) => a + b, 0) / levels.length,
+    min_percent_full: Math.min(...levels),
+    max_percent_full: Math.max(...levels),
+    avg_confidence: confs.reduce((a, b) => a + b, 0) / confs.length,
+  };
+}
+
 function setSummary(summary) {
+  statsLabel.textContent = RANGES[currentRange].label;
   readingCount.textContent = String(summary.reading_count ?? 0);
   avgLevel.textContent = formatPercent(summary.avg_percent_full);
   if (summary.min_percent_full == null || summary.max_percent_full == null) {
     levelRange.textContent = "--";
   } else {
-    levelRange.textContent = `${summary.min_percent_full.toFixed(1)}% - ${summary.max_percent_full.toFixed(1)}%`;
+    levelRange.textContent = `${summary.min_percent_full.toFixed(1)}% \u2013 ${summary.max_percent_full.toFixed(1)}%`;
   }
   avgConfidence.textContent = formatConfidence(summary.avg_confidence);
+}
+
+function formatAxisDate(date, range) {
+  if (range === "24h") return shortTimeFormatter.format(date);
+  return shortDateFormatter.format(date);
 }
 
 function renderChart(readings) {
@@ -88,59 +145,126 @@ function renderChart(readings) {
 
   if (points.length < 2) {
     const message = document.createElementNS("http://www.w3.org/2000/svg", "text");
-    message.setAttribute("x", "50%");
-    message.setAttribute("y", "50%");
+    message.setAttribute("x", "450");
+    message.setAttribute("y", "170");
     message.setAttribute("text-anchor", "middle");
     message.setAttribute("fill", "#5d6c63");
+    message.setAttribute("font-size", "14");
+    message.setAttribute("font-family", "Avenir Next, Segoe UI, sans-serif");
     message.textContent = "Not enough readings yet";
     chart.appendChild(message);
     return;
   }
 
-  const width = 900;
-  const height = 280;
-  const padding = 28;
-  const usableWidth = width - padding * 2;
-  const usableHeight = height - padding * 2;
+  const svgW = 900;
+  const svgH = 340;
+  const padLeft = 52;
+  const padRight = 20;
+  const padTop = 20;
+  const padBottom = 44;
+  const usableW = svgW - padLeft - padRight;
+  const usableH = svgH - padTop - padBottom;
 
-  for (let index = 0; index <= 4; index += 1) {
-    const y = padding + ((usableHeight / 4) * index);
+  // Y-axis labels and grid lines (0%, 25%, 50%, 75%, 100%)
+  for (let pct = 0; pct <= 100; pct += 25) {
+    const y = padTop + usableH - (pct / 100) * usableH;
+
     const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-    line.setAttribute("x1", String(padding));
-    line.setAttribute("x2", String(width - padding));
+    line.setAttribute("x1", String(padLeft));
+    line.setAttribute("x2", String(svgW - padRight));
     line.setAttribute("y1", String(y));
     line.setAttribute("y2", String(y));
-    line.setAttribute("stroke", "rgba(33, 48, 39, 0.12)");
+    line.setAttribute("stroke", "rgba(33, 48, 39, 0.10)");
     chart.appendChild(line);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String(padLeft - 8));
+    label.setAttribute("y", String(y + 4));
+    label.setAttribute("text-anchor", "end");
+    label.setAttribute("class", "chart-axis-label");
+    label.textContent = `${pct}%`;
+    chart.appendChild(label);
   }
 
-  const pathCommands = points.map((reading, index) => {
-    const x = padding + ((usableWidth / (points.length - 1)) * index);
-    const y = padding + usableHeight - ((reading.percent_full / 100) * usableHeight);
-    return `${index === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+  // Compute point positions
+  const coords = points.map((reading, index) => {
+    const x = padLeft + (usableW / (points.length - 1)) * index;
+    const y = padTop + usableH - (reading.percent_full / 100) * usableH;
+    return { x, y, reading };
   });
 
+  // X-axis labels — pick ~6 evenly spaced ticks
+  const tickCount = Math.min(6, points.length);
+  for (let i = 0; i < tickCount; i++) {
+    const idx = Math.round((i / (tickCount - 1)) * (points.length - 1));
+    const { x, reading } = coords[idx];
+    const date = new Date(reading.captured_at);
+
+    const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    label.setAttribute("x", String(x));
+    label.setAttribute("y", String(svgH - 8));
+    label.setAttribute("text-anchor", "middle");
+    label.setAttribute("class", "chart-axis-label");
+    label.textContent = formatAxisDate(date, currentRange);
+    chart.appendChild(label);
+
+    const tick = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    tick.setAttribute("x1", String(x));
+    tick.setAttribute("x2", String(x));
+    tick.setAttribute("y1", String(padTop + usableH));
+    tick.setAttribute("y2", String(padTop + usableH + 6));
+    tick.setAttribute("stroke", "rgba(33, 48, 39, 0.2)");
+    chart.appendChild(tick);
+  }
+
+  // Line path
+  const pathD = coords
+    .map(({ x, y }, i) => `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`)
+    .join(" ");
+
   const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", pathCommands.join(" "));
+  path.setAttribute("d", pathD);
   path.setAttribute("fill", "none");
   path.setAttribute("stroke", "#c2185b");
-  path.setAttribute("stroke-width", "4");
+  path.setAttribute("stroke-width", "3");
   path.setAttribute("stroke-linecap", "round");
   path.setAttribute("stroke-linejoin", "round");
   chart.appendChild(path);
 
-  const latest = points.at(-1);
-  if (latest) {
-    const x = width - padding;
-    const y = padding + usableHeight - ((latest.percent_full / 100) * usableHeight);
-    const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-    marker.setAttribute("cx", String(x));
-    marker.setAttribute("cy", String(y));
-    marker.setAttribute("r", "6");
-    marker.setAttribute("fill", "#f48fb1");
-    marker.setAttribute("stroke", "#880e4f");
-    marker.setAttribute("stroke-width", "3");
-    chart.appendChild(marker);
+  // Dots — show all if <= 60 points, otherwise sample evenly
+  const maxDots = 60;
+  let dotIndices;
+  if (coords.length <= maxDots) {
+    dotIndices = coords.map((_, i) => i);
+  } else {
+    dotIndices = [];
+    for (let i = 0; i < maxDots; i++) {
+      dotIndices.push(Math.round((i / (maxDots - 1)) * (coords.length - 1)));
+    }
+  }
+
+  for (const idx of dotIndices) {
+    const { x, y, reading } = coords[idx];
+
+    const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    dot.setAttribute("cx", String(x));
+    dot.setAttribute("cy", String(y));
+    dot.setAttribute("r", coords.length > 30 ? "3" : "4.5");
+    dot.setAttribute("fill", "#f48fb1");
+    dot.setAttribute("stroke", "#880e4f");
+    dot.setAttribute("stroke-width", coords.length > 30 ? "1.5" : "2");
+    chart.appendChild(dot);
+
+    // Label on dot — only show if few enough points to not overlap
+    if (coords.length <= 24) {
+      const lbl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      lbl.setAttribute("x", String(x));
+      lbl.setAttribute("y", String(y - 10));
+      lbl.setAttribute("text-anchor", "middle");
+      lbl.setAttribute("class", "chart-tooltip");
+      lbl.textContent = `${reading.percent_full.toFixed(0)}%`;
+      chart.appendChild(lbl);
+    }
   }
 }
 
@@ -149,12 +273,14 @@ function renderTable(readings) {
 
   if (!readings.length) {
     const row = document.createElement("tr");
-    row.innerHTML = '<td colspan="7" class="empty">No readings yet</td>';
+    row.innerHTML = '<td colspan="6" class="empty">No readings yet</td>';
     readingsBody.appendChild(row);
     return;
   }
 
-  for (const reading of readings.slice(0, 20)) {
+  tableCaption.textContent = `${readings.length} readings \u2022 Newest first`;
+
+  for (const reading of readings) {
     const row = document.createElement("tr");
     row.innerHTML = `
       <td>${dateFormatter.format(new Date(reading.captured_at))}</td>
@@ -163,7 +289,6 @@ function renderTable(readings) {
       <td>${reading.marker_center_y == null ? "--" : reading.marker_center_y.toFixed(1)}</td>
       <td>${formatConfidence(reading.confidence)}</td>
       <td>${reading.source_kind}</td>
-      <td>${reading.notes}</td>
     `;
     row.addEventListener("click", () => openReadingModal(reading));
     readingsBody.appendChild(row);
@@ -243,10 +368,23 @@ modalDelete.addEventListener("click", async () => {
   }
 });
 
+// Range selector
+rangeSelector.addEventListener("click", (e) => {
+  const btn = e.target.closest(".range-btn");
+  if (!btn) return;
+  const range = btn.dataset.range;
+  if (range === currentRange) return;
+
+  currentRange = range;
+  rangeSelector.querySelectorAll(".range-btn").forEach((b) => b.classList.remove("active"));
+  btn.classList.add("active");
+  loadDashboard();
+});
+
 async function loadDashboard() {
   const [statusResponse, readingsResponse] = await Promise.all([
     fetch("/api/status"),
-    fetch("/api/readings?limit=96"),
+    fetch(`/api/readings?limit=10000${sinceParam(currentRange)}`),
   ]);
 
   if (!statusResponse.ok || !readingsResponse.ok) {
@@ -266,8 +404,9 @@ async function loadDashboard() {
     : collectRemaining < 5
       ? `Collect Now (${collectRemaining} left)`
       : "Collect Now";
+
   setCurrentLevel(status.latest);
-  setSummary(status.summary);
+  setSummary(computeSummary(readings.items));
   renderChart(readings.items);
   renderTable(readings.items);
 }
