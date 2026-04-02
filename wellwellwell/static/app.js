@@ -258,6 +258,14 @@ async function loadDashboard() {
 
   flushEnabled = !!status.admin?.flush_enabled;
   bottomActions.hidden = !flushEnabled;
+
+  const collectRemaining = status.collect_remaining ?? 5;
+  collectNowButton.disabled = collectRemaining <= 0;
+  collectNowButton.textContent = collectRemaining <= 0
+    ? "Rate Limited"
+    : collectRemaining < 5
+      ? `Collect Now (${collectRemaining} left)`
+      : "Collect Now";
   setCurrentLevel(status.latest);
   setSummary(status.summary);
   renderChart(readings.items);
@@ -280,6 +288,7 @@ collectNowButton.addEventListener("click", async () => {
     await loadDashboard();
   } catch (error) {
     actionStatus.textContent = error?.message || "Collect failed";
+    await loadDashboard();
   } finally {
     collectNowButton.disabled = false;
     setTimeout(() => {

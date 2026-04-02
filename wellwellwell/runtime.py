@@ -6,6 +6,7 @@ import math
 import threading
 import time
 
+from .ratelimit import collect_limiter
 from .config import AppConfig
 from .service import collect_once
 
@@ -61,6 +62,7 @@ class CollectorLoop:
     def _collect_once(self) -> None:
         try:
             reading = collect_once(self.config)
+            collect_limiter.reset()
             logger.info(
                 "Collected reading id=%s found=%s percent_full=%s confidence=%.2f",
                 reading.id,
