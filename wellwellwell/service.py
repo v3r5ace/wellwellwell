@@ -11,7 +11,7 @@ import cv2
 
 from .capture import capture_snapshot, ingest_local_image
 from .config import AppConfig
-from .db import ReadingRecord, delete_all_readings, initialize_database, insert_reading
+from .db import ReadingRecord, delete_all_readings, delete_reading_by_id, fetch_reading_by_id, initialize_database, insert_reading
 from .detector import annotate_detection, crop_frame, detect_marker
 
 _storage_lock = threading.Lock()
@@ -108,6 +108,26 @@ def collect_once(config: AppConfig, sample_image: Path | None = None) -> Reading
         )
 
         return insert_reading(config.db_path, reading)
+
+
+def delete_single_reading(config: AppConfig, reading_id: int) -> dict[str, Any]:
+    with _storage_lock:
+        record = fetch_reading_by_id(config.db_path, reading_id)
+        if record is None:
+            raise FileNotFoundError(f"Reading {reading_id} not found")
+
+        delete_reading_by_id(config.db_path, reading_id)
+
+        removed_files = 0
+        for rel_path in (record.raw_image_path, record.crop_image_path, record.debug_image_path):
+            if rel_path is None:
+                continue
+            full_path = config.data_dir / rel_path
+            if full_path.is_file():
+                full_path.unlink()
+                removed_files += 1
+
+    return {"deleted_reading_id": reading_id, "removed_files": removed_files}
 
 
 def flush_history(config: AppConfig) -> dict[str, int]:

@@ -9,8 +9,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from .config import AppConfig, load_config
-from .db import fetch_latest_reading, fetch_recent_readings, fetch_recent_summary, initialize_database
-from .service import collect_once, compute_gallons_remaining, flush_history, serialize_reading
+from .db import fetch_latest_reading, fetch_reading_by_id, fetch_recent_readings, fetch_recent_summary, initialize_database
+from .service import collect_once, compute_gallons_remaining, delete_single_reading, flush_history, serialize_reading
 
 
 class FlushRequest(BaseModel):
@@ -89,6 +89,27 @@ def create_app(config: AppConfig | None = None) -> FastAPI:
         return {
             "items": [serialize_reading(record, active_config) for record in records],
         }
+
+    @app.get("/api/readings/{reading_id}")
+    async def get_reading(reading_id: int) -> dict[str, object]:
+        record = fetch_reading_by_id(active_config.db_path, reading_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="Reading not found")
+        return {"reading": serialize_reading(record, active_config)}
+
+    @app.delete("/api/readings/{reading_id}")
+    async def delete_reading(reading_id: int, request: FlushRequest) -> dict[str, object]:
+        if not active_config.flush_password:
+            raise HTTPException(status_code=403, detail="Flush password is not configured")
+        if not secrets.compare_digest(request.password, active_config.flush_password):
+            raise HTTPException(status_code=403, detail="Invalid flush password")
+
+        try:
+            result = delete_single_reading(active_config, reading_id)
+        except FileNotFoundError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+        return {"status": "ok", **result}
 
     @app.post("/api/collect")
     async def collect(sample_image: str | None = None) -> dict[str, object]:
