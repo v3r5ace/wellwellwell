@@ -11,6 +11,7 @@ const avgConfidence = document.getElementById("avg-confidence");
 const latestImage = document.getElementById("latest-image");
 const latestMeta = document.getElementById("latest-meta");
 const chart = document.getElementById("history-chart");
+const chartInspector = document.getElementById("chart-inspector");
 const readingsBody = document.getElementById("readings-body");
 const tableCaption = document.getElementById("table-caption");
 const pagination = document.getElementById("pagination");
@@ -24,6 +25,7 @@ const rangeSelector = document.getElementById("range-selector");
 const chartModal = document.getElementById("chart-modal");
 const chartModalClose = document.getElementById("chart-modal-close");
 const chartModalSvg = document.getElementById("chart-modal-svg");
+const chartModalInspector = document.getElementById("chart-modal-inspector");
 
 const readingModal = document.getElementById("reading-modal");
 const modalClose = document.getElementById("modal-close");
@@ -40,6 +42,8 @@ let currentPage = 0;
 let allReadings = [];
 let knownBuildId = null;
 const PAGE_SIZE = 12;
+const CHART_TOUCH_DRAG_THRESHOLD = 8;
+const chartInteractionStates = new WeakMap();
 
 const RANGES = {
   "24h": { hours: 24, label: "Last 24 Hours" },
@@ -167,13 +171,209 @@ function formatAxisDate(date, range) {
   return shortDateFormatter.format(date);
 }
 
+function getChartIdleText() {
+  return isMobile() ? "Drag to inspect" : "Hover or drag to inspect";
+}
+
+function setChartInspectorText(el, text) {
+  if (el) {
+    el.textContent = text;
+  }
+}
+
+function clearChartInspection(state) {
+  if (state.guideLine) {
+    state.guideLine.setAttribute("visibility", "hidden");
+  }
+
+  if (state.activeMarker) {
+    state.activeMarker.setAttribute("visibility", "hidden");
+  }
+
+  setChartInspectorText(state.captionEl, state.hasData ? state.idleText : state.emptyText);
+}
+
+function showChartInspection(state, index) {
+  const point = state.coords[index];
+  if (!point || !state.guideLine || !state.activeMarker) {
+    return;
+  }
+
+  state.guideLine.setAttribute("x1", point.x.toFixed(1));
+  state.guideLine.setAttribute("x2", point.x.toFixed(1));
+  state.guideLine.setAttribute("visibility", "visible");
+
+  state.activeMarker.setAttribute("cx", point.x.toFixed(1));
+  state.activeMarker.setAttribute("cy", point.y.toFixed(1));
+  state.activeMarker.setAttribute("visibility", "visible");
+
+  setChartInspectorText(
+    state.captionEl,
+    `${formatPercent(point.reading.percent_full)} \u2022 ${dateFormatter.format(new Date(point.reading.captured_at))}`,
+  );
+}
+
+function getChartPointerX(state, event) {
+  const bounds = state.svgEl.getBoundingClientRect();
+  if (!bounds.width) {
+    return null;
+  }
+
+  const offsetX = Math.max(0, Math.min(bounds.width, event.clientX - bounds.left));
+  const svgX = (offsetX / bounds.width) * state.viewWidth;
+  return Math.max(state.plotLeft, Math.min(state.plotRight, svgX));
+}
+
+function updateChartInspectionFromEvent(state, event) {
+  if (!state.hasData || state.coords.length < 2) {
+    return;
+  }
+
+  const pointerX = getChartPointerX(state, event);
+  if (pointerX == null) {
+    return;
+  }
+
+  let nearestIndex = 0;
+  let nearestDistance = Number.POSITIVE_INFINITY;
+
+  state.coords.forEach((point, index) => {
+    const distance = Math.abs(point.x - pointerX);
+    if (distance < nearestDistance) {
+      nearestDistance = distance;
+      nearestIndex = index;
+    }
+  });
+
+  showChartInspection(state, nearestIndex);
+}
+
+function getChartInteractionState(svgEl) {
+  let state = chartInteractionStates.get(svgEl);
+  if (state) {
+    return state;
+  }
+
+  state = {
+    svgEl,
+    coords: [],
+    guideLine: null,
+    activeMarker: null,
+    captionEl: null,
+    idleText: getChartIdleText(),
+    emptyText: "Not enough readings yet",
+    hasData: false,
+    viewWidth: 0,
+    plotLeft: 0,
+    plotRight: 0,
+    activeTouchPointerId: null,
+    touchStartX: 0,
+    touchStartY: 0,
+    suppressNextClick: false,
+  };
+
+  svgEl.addEventListener("pointerdown", (event) => {
+    if (!state.hasData || state.coords.length < 2) {
+      return;
+    }
+
+    if (event.pointerType === "touch") {
+      state.activeTouchPointerId = event.pointerId;
+      state.touchStartX = event.clientX;
+      state.touchStartY = event.clientY;
+      state.suppressNextClick = false;
+      svgEl.setPointerCapture?.(event.pointerId);
+    }
+
+    updateChartInspectionFromEvent(state, event);
+  });
+
+  svgEl.addEventListener("pointermove", (event) => {
+    if (!state.hasData || state.coords.length < 2) {
+      return;
+    }
+
+    if (event.pointerType === "touch") {
+      if (event.pointerId !== state.activeTouchPointerId) {
+        return;
+      }
+
+      if (
+        Math.abs(event.clientX - state.touchStartX) > CHART_TOUCH_DRAG_THRESHOLD
+        || Math.abs(event.clientY - state.touchStartY) > CHART_TOUCH_DRAG_THRESHOLD
+      ) {
+        state.suppressNextClick = true;
+      }
+    }
+
+    updateChartInspectionFromEvent(state, event);
+  });
+
+  svgEl.addEventListener("pointerleave", (event) => {
+    if (event.pointerType !== "touch") {
+      clearChartInspection(state);
+    }
+  });
+
+  svgEl.addEventListener("pointerup", (event) => {
+    if (event.pointerType !== "touch" || event.pointerId !== state.activeTouchPointerId) {
+      return;
+    }
+
+    state.activeTouchPointerId = null;
+    svgEl.releasePointerCapture?.(event.pointerId);
+    clearChartInspection(state);
+  });
+
+  svgEl.addEventListener("pointercancel", (event) => {
+    if (event.pointerType !== "touch" || event.pointerId !== state.activeTouchPointerId) {
+      return;
+    }
+
+    state.activeTouchPointerId = null;
+    svgEl.releasePointerCapture?.(event.pointerId);
+    clearChartInspection(state);
+  });
+
+  svgEl.addEventListener("lostpointercapture", () => {
+    state.activeTouchPointerId = null;
+    clearChartInspection(state);
+  });
+
+  chartInteractionStates.set(svgEl, state);
+  return state;
+}
+
+function consumeChartTapSuppression(svgEl) {
+  const state = chartInteractionStates.get(svgEl);
+  if (!state?.suppressNextClick) {
+    return false;
+  }
+
+  state.suppressNextClick = false;
+  return true;
+}
+
 function buildChart(svgEl, readings, options = {}) {
   svgEl.innerHTML = "";
 
   const svgW = options.width || 900;
   const svgH = options.height || 340;
   const clickable = options.clickable !== false;
+  const interactionState = getChartInteractionState(svgEl);
   svgEl.setAttribute("viewBox", `0 0 ${svgW} ${svgH}`);
+  interactionState.captionEl = options.captionEl || null;
+  interactionState.idleText = options.idleText || getChartIdleText();
+  interactionState.emptyText = options.emptyText || "Not enough readings yet";
+  interactionState.hasData = false;
+  interactionState.coords = [];
+  interactionState.guideLine = null;
+  interactionState.activeMarker = null;
+  interactionState.viewWidth = svgW;
+  interactionState.plotLeft = 0;
+  interactionState.plotRight = svgW;
+  interactionState.activeTouchPointerId = null;
+  interactionState.suppressNextClick = false;
 
   const points = readings
     .filter((reading) => reading.percent_full != null)
@@ -189,6 +389,7 @@ function buildChart(svgEl, readings, options = {}) {
     message.setAttribute("font-family", "Avenir Next, Segoe UI, sans-serif");
     message.textContent = "Not enough readings yet";
     svgEl.appendChild(message);
+    setChartInspectorText(interactionState.captionEl, interactionState.emptyText);
     return;
   }
 
@@ -239,6 +440,22 @@ function buildChart(svgEl, readings, options = {}) {
     const y = padTop + usableH - ((reading.percent_full - yMin) / yRange) * usableH;
     return { x, y, reading };
   });
+
+  interactionState.hasData = true;
+  interactionState.coords = coords;
+  interactionState.plotLeft = padLeft;
+  interactionState.plotRight = svgW - padRight;
+
+  const guideLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+  guideLine.setAttribute("y1", String(padTop));
+  guideLine.setAttribute("y2", String(padTop + usableH));
+  guideLine.setAttribute("stroke", "rgba(136, 14, 79, 0.35)");
+  guideLine.setAttribute("stroke-width", "2");
+  guideLine.setAttribute("stroke-linecap", "round");
+  guideLine.setAttribute("visibility", "hidden");
+  guideLine.setAttribute("pointer-events", "none");
+  svgEl.appendChild(guideLine);
+  interactionState.guideLine = guideLine;
 
   const tickCount = Math.min(6, points.length);
   for (let i = 0; i < tickCount; i++) {
@@ -317,10 +534,22 @@ function buildChart(svgEl, readings, options = {}) {
       svgEl.appendChild(lbl);
     }
   }
+
+  const activeMarker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+  activeMarker.setAttribute("r", coords.length > 30 ? "5.5" : "7");
+  activeMarker.setAttribute("fill", "#fff4f8");
+  activeMarker.setAttribute("stroke", "#880e4f");
+  activeMarker.setAttribute("stroke-width", "2.5");
+  activeMarker.setAttribute("visibility", "hidden");
+  activeMarker.setAttribute("pointer-events", "none");
+  svgEl.appendChild(activeMarker);
+  interactionState.activeMarker = activeMarker;
+
+  setChartInspectorText(interactionState.captionEl, interactionState.idleText);
 }
 
 function renderChart(readings) {
-  buildChart(chart, readings);
+  buildChart(chart, readings, { captionEl: chartInspector });
 }
 
 function renderTable(readings) {
@@ -466,8 +695,9 @@ modalDelete.addEventListener("click", async () => {
 
 // Chart modal for mobile
 chart.addEventListener("click", () => {
+  if (consumeChartTapSuppression(chart)) return;
   if (!isMobile()) return;
-  buildChart(chartModalSvg, allReadings, { width: 900, height: 500, clickable: false });
+  buildChart(chartModalSvg, allReadings, { width: 900, height: 500, clickable: false, captionEl: chartModalInspector });
   chartModal.hidden = false;
 });
 
